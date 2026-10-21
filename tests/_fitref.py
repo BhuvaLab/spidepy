@@ -74,8 +74,7 @@ def fit_from_ref(d: dict, sigma: float = 30.0) -> SpiDEFit:
 def table_equal(tab: pd.DataFrame, ref: dict, what: str, rtol=1e-8):
     """A results table against R's: labels, ``in_family`` and NA patterns exact."""
     ref = dict(ref)
-    cols = [c.replace("p.heterogeneity", "p_heterogeneity") for c in strs(ref.pop("colnames__"))]
-    ref = {k.replace("p.heterogeneity", "p_heterogeneity"): v for k, v in ref.items()}
+    cols = strs(ref.pop("colnames__"))
     assert list(tab.columns) == cols, what
     for c in cols:
         v = np.atleast_1d(ref[c])

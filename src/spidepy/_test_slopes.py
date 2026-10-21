@@ -310,7 +310,7 @@ def _slopes_tests(
             )
         for name, d in tests:
             head = pd.DataFrame({"gene": genes, "niche": niche, "test": name})
-            out.append(pd.concat([head, d, pd.DataFrame({"p_heterogeneity": het[:, j]})], axis=1))
+            out.append(pd.concat([head, d, pd.DataFrame({"p.heterogeneity": het[:, j]})], axis=1))
     return pd.concat(out, ignore_index=True)
 
 
@@ -338,7 +338,7 @@ def _bh_families(tab: pd.DataFrame, procedure: str, fdr: float) -> pd.DataFrame:
         pooled_pass = {key[i] for i in pl[q[pl] < fdr]}
         het_pass: set = set()
         if procedure != "filtered":
-            ph = tab["p_heterogeneity"].to_numpy(dtype=float)
+            ph = tab["p.heterogeneity"].to_numpy(dtype=float)
             hl = np.flatnonzero(is_pooled & np.isfinite(ph))
             het_pass = {key[i] for i in hl[p_adjust_bh(ph[hl]) < fdr]}
         if procedure == "filtered":

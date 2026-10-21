@@ -113,7 +113,7 @@ def test_spide(
                 tk = tk[tk["test"] == "pooled"]
             tk = tk[_SANDWICH_COLS].copy()
             tk["n_patients"] = float(len(x["patients"]))
-            tk["p_heterogeneity"] = np.nan
+            tk["p.heterogeneity"] = np.nan
         tk = tk.reset_index(drop=True)
         tk.insert(1, "index", k)
         tabs.append(tk)

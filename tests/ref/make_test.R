@@ -178,4 +178,27 @@ spd <- buildNiches(spiDE:::.toySPE(), sigma = 20, verbose = FALSE)
 fdef <- fitSpiDE(spd, index = "A", sigma = 20, min.patients = 6, verbose = FALSE)
 cfg$default_toy <- list(fit = dump_in(fdef), all = dump_res(testSpiDE(fdef, condition = "condition", procedure = "all")))
 
+# clubSandwich cross-check of the condition test (test-engine.R): lm + vcovCR(CR2) + Satterthwaite
+suppressPackageStartupMessages(library(clubSandwich, lib.loc = "tests/ref/Rlib"))
+{
+  x <- f16@index$A; G <- length(x$genes)
+  trt <- unname(spiDE:::.conditionCoding(f16@patients, "condition")[x$patients])
+  vp <- sweep(x$v_model, c(2, 3), x$factor, "*"); tau <- spiDE:::.dlTau2(x$beta, vp)
+  est <- se <- dfs <- matrix(NA_real_, G, length(x$niches))
+  for (j in seq_along(x$niches)) {
+    got <- spiDE:::.robustConditionTest(matrix(x$beta[, , j], nrow = G), matrix(vp[, , j], nrow = G), tau[, j], trt)
+    for (g in seq_len(G)) {
+      ok <- is.finite(x$beta[g, , j]) & is.finite(vp[g, , j])
+      if (!is.finite(got$t[g])) next
+      d <- data.frame(y = x$beta[g, ok, j], trt = trt[ok], w = 1 / (vp[g, ok, j] + tau[g, j]))
+      d$w <- d$w / mean(d$w)
+      f <- stats::lm(y ~ trt, data = d, weights = w)
+      vc <- clubSandwich::vcovCR(f, cluster = seq_len(nrow(d)), type = "CR2", inverse_var = TRUE)
+      ct <- clubSandwich::coef_test(f, vcov = vc, test = "Satterthwaite")
+      est[g, j] <- unname(stats::coef(f)[2]); se[g, j] <- ct$SE[2]; dfs[g, j] <- ct$df_Satt[2]
+    }
+  }
+  cfg$club <- list(estimate = est, se = se, df = dfs)
+}
+
 write_ref(cfg, "test")

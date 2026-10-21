@@ -290,7 +290,7 @@ def test_bh_families_follow_the_filters():
             "niche": "B",
             "test": ["pooled"] * n + ["condition"] * n,
             "p": np.r_[rng.uniform(0, 0.01, 10), rng.uniform(0, 1, n - 10), rng.uniform(0, 1, n)],
-            "p_heterogeneity": np.r_[
+            "p.heterogeneity": np.r_[
                 rng.uniform(0, 1, 5), rng.uniform(0, 1e-6, 5), rng.uniform(0, 1, 2 * n - 10)
             ],
         }
@@ -306,7 +306,7 @@ def test_bh_families_follow_the_filters():
         c = t[t["test"] == "condition"]
         assert not c["in_family"].iloc[3]
         pooled_pass = set(pl["gene"][pl["q"] < 0.05])
-        het_pass = set(pl["gene"][p_adjust_bh(pl["p_heterogeneity"]) < 0.05])
+        het_pass = set(pl["gene"][p_adjust_bh(pl["p.heterogeneity"]) < 0.05])
         want = {
             "pooled_or_heterogeneity": pooled_pass | het_pass,
             "heterogeneity": het_pass,
@@ -317,3 +317,26 @@ def test_bh_families_follow_the_filters():
         assert fam.tolist() == [g in want and np.isfinite(p) for g, p in zip(c["gene"], c["p"])]
         np.testing.assert_allclose(c["q"][fam], p_adjust_bh(c["p"][fam]))
         assert c["q"][~fam].isna().all()
+
+
+def test_condition_test_equals_clubsandwich_cr2_satterthwaite(R):
+    # test-engine.R: weighted lm + vcovCR(CR2, inverse_var) + coef_test(Satterthwaite)
+    from spidepy.fit import _condition_coding
+
+    fit = fit_from_ref(R["sl16"]["fit"])
+    x = fit.index["A"]
+    trt = _condition_coding(fit.patients, "condition").reindex(x["patients"]).to_numpy()
+    c = R["club"]
+    est, se, dfs = (np.asarray(c[k], float) for k in ("estimate", "se", "df"))
+    vp = x["v_model"] * x["factor"].to_numpy()[None]
+    tau = _dl_tau2(x["beta"], vp)
+    checked = 0
+    for j in range(len(x["niches"])):
+        got = _robust_condition_test(x["beta"][:, :, j], vp[:, :, j], tau[:, j], trt)
+        fin = np.isfinite(got["t"].to_numpy())
+        np.testing.assert_array_equal(fin, np.isfinite(se[:, j]))
+        np.testing.assert_allclose(got["estimate"][fin], est[fin, j], rtol=1e-10)
+        np.testing.assert_allclose(got["se"][fin], se[fin, j], rtol=1e-8)
+        np.testing.assert_allclose(got["df"][fin], dfs[fin, j], rtol=1e-6)
+        checked += int(fin.sum())
+    assert checked > 10

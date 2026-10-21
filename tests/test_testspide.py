@@ -123,7 +123,7 @@ def test_sandwich_tables_on_r_fit(R):
     _check(res0, d["pooled_only"], "sand pooled only")
     assert set(res0.table["test"]) == {"pooled"}
     assert res0.pooled_df is None
-    assert res0.table["p_heterogeneity"].isna().all()
+    assert res0.table["p.heterogeneity"].isna().all()
 
 
 def test_big_fixture_table_on_r_fit(R):
@@ -187,17 +187,22 @@ def test_show_matches_r(R, fit16):
 # --------------------------------------------------------------------------------------
 # end to end from AnnData
 # --------------------------------------------------------------------------------------
-def _e2e(res, r, what, noisy_rows=None, noisy_q=None):
+def _e2e(res, r, what, noisy_rows=None):
     """Table at 1e-6. ``noisy_rows`` (a mask over rows) holds the pooled rows whose robust prior is
     tie-noise sensitive (see ``NOISY`` in test_test_slopes.py): se, t, df and p of those rows
     are compared at 5e-3 and the rest of the table, including their estimate, at 1e-6. Their
-    noise reaches ``q`` of every pooled row through the BH step-up (``noisy_q``)."""
+    noise reaches ``q`` of the pooled rows that rank at or above them in the BH step-up; only
+    those q are relaxed. The rejected set (``in_family`` and ``q <= fdr``) must match R exactly."""
     got = res.table
+    ref = frame(r["table"])
+    rej = lambda t: (t["in_family"].astype(bool) & (t["q"] <= r["fdr"])).to_numpy()  # noqa: E731
+    np.testing.assert_array_equal(rej(got), rej(ref), err_msg=what + " rejected set")
     if noisy_rows is not None:
-        ref = frame(r["table"])
         got = got.copy()
+        pooled = (ref["test"] == "pooled").to_numpy()
+        affected = pooled & (ref["p"].to_numpy() <= ref.loc[noisy_rows, "p"].max())
         for c, rows in (("se", noisy_rows), ("t", noisy_rows), ("df", noisy_rows),
-                        ("p", noisy_rows), ("q", noisy_q)):  # fmt: skip
+                        ("p", noisy_rows), ("q", affected)):  # fmt: skip
             np.testing.assert_allclose(
                 got.loc[rows, c], ref.loc[rows, c], rtol=5e-3, err_msg=what + c
             )
@@ -211,8 +216,7 @@ def test_spide_end_to_end_matches_r(R, toy):
     e = R["e2e"]
     res = spidepy.spide(sp7, "condition", 30, index="A", procedure="all", verbose=False)
     t = res.table
-    pooled = (t["test"] == "pooled").to_numpy()
-    _e2e(res, e["slopes"], "slopes", (pooled & (t["niche"] == "B")).to_numpy(), pooled)
+    _e2e(res, e["slopes"], "slopes", ((t["test"] == "pooled") & (t["niche"] == "B")).to_numpy())
     _e2e(
         spidepy.spide(
             sp7, "condition", 30, index="A", engine="sandwich", procedure="all", verbose=False
@@ -305,7 +309,7 @@ def test_pooled_test_and_its_filter_never_look_at_the_condition(fit16):
     fp = copy.deepcopy(fit16)
     fp.patients["perm"] = pd.Categorical(lab[pt["patient"]].to_numpy())
     r2 = spidepy.test_spide(fp, condition="perm")
-    cols = ["gene", "niche", "p", "q", "p_heterogeneity"]
+    cols = ["gene", "niche", "p", "q", "p.heterogeneity"]
     pd.testing.assert_frame_equal(
         r1.table.query("test == 'pooled'")[cols], r2.table.query("test == 'pooled'")[cols]
     )
@@ -346,9 +350,9 @@ def test_defaults_are_pooled_or_heterogeneity_and_proportional_df(fit16):
         ).table,
     )
     tb = r.table
-    pl = tb[(tb["test"] == "pooled") & tb["p_heterogeneity"].notna()]
+    pl = tb[(tb["test"] == "pooled") & tb["p.heterogeneity"].notna()]
     key = lambda d: list(zip(d["gene"], d["index"], d["niche"]))  # noqa: E731
-    het = {k for k, q in zip(key(pl), p_adjust_bh(pl["p_heterogeneity"])) if q < r.fdr}
+    het = {k for k, q in zip(key(pl), p_adjust_bh(pl["p.heterogeneity"])) if q < r.fdr}
     pp = tb[(tb["test"] == "pooled") & tb["p"].notna()]
     pooled = {k for k, q in zip(key(pp), pp["q"]) if q < r.fdr}
     cond = tb[tb["test"] == "condition"]
@@ -374,11 +378,11 @@ def test_defaults_are_pooled_or_heterogeneity_and_proportional_df(fit16):
     pk = {
         k: h
         for k, h in zip(
-            key(tb[tb["test"] == "pooled"]), tb.loc[tb["test"] == "pooled", "p_heterogeneity"]
+            key(tb[tb["test"] == "pooled"]), tb.loc[tb["test"] == "pooled", "p.heterogeneity"]
         )
     }
     expected = np.array([pk[k] for k in key(cond)])
-    np.testing.assert_array_equal(cond["p_heterogeneity"].to_numpy(), expected)
+    np.testing.assert_array_equal(cond["p.heterogeneity"].to_numpy(), expected)
 
 
 def test_previous_defaults_stay_available_and_only_family_and_pooled_df_move(fit16):
@@ -400,7 +404,7 @@ def test_sandwich_keeps_the_pooled_filter_and_refuses_the_heterogeneity_filter()
     fs = fit_spide(sp, condition="condition", index="A", sigma=30, engine="sandwich", verbose=False)
     r = spidepy.test_spide(fs)
     assert r.procedure == "filtered" and r.pooled_df is None
-    assert r.table["p_heterogeneity"].isna().all()
+    assert r.table["p.heterogeneity"].isna().all()
     for proc in ("heterogeneity", "pooled_or_heterogeneity"):
         with pytest.raises(ValueError, match="slopes engine"):
             spidepy.test_spide(fs, procedure=proc)

@@ -86,7 +86,7 @@ class SpiDEResults:
     ----------
     table : pandas.DataFrame
         One row per (gene, index, niche, test): ``gene, index, niche, test, estimate, se, t,
-        df, p, n_patients, p_heterogeneity`` (R ``p.heterogeneity``; NA for the sandwich
+        df, p, n_patients, p.heterogeneity`` (R ``p.heterogeneity``; NA for the sandwich
         engine), ``q`` and ``in_family``.
     condition : str or None
         The condition tested.
