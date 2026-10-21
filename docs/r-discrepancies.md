@@ -28,3 +28,16 @@ One bullet per item: what R does, what spidepy does, and why.
 - **`merge_niches` key prefix.** With `sigma = None`, R greps `^Niche` over `reducedDimNames`,
   so any key beginning with `name` (for example `NicheFoo`) is merged and given a group map,
   not only `Niche<number>` keys. `merge_niches` does the same over `obsm` keys.
+- **limma `weightedLowess` (trend of unequal-df `squeezeVar`).** The installed limma ships no C
+  source, so `_limma._weighted_lowess` reproduces `weighted_lowess.c` by matching R's output: window
+  = nearest points holding `span` x total weight, pure tricube weights (no `0.001`/`0.999`
+  cut-offs as in `lowess`), one pass, and the next fitted point is the first beyond
+  `x[last] + delta`. Agreement is 1e-11 relative on continuous `x`; heavily tied `x` is not
+  verified. The equal-weights branch of `loessFit` (plain `lowess`) is not ported: it cannot
+  occur from `fitFDistUnequalDF1`, whose weights vary with the df.
+- **`eBayes` outputs not computed.** `var.prior`, `lods` and the `F` statistics
+  (`tmixture.matrix`, `classifyTestsF`) are not read by spiDE and are not returned; `lmFit`'s
+  `cat("Coefficients not estimable")` message is not printed (aliased coefficients are `nan`).
+- **Unequal-df prior to ~1e-9.** `fitFDistUnequalDF1` finds `df2` by Brent's method (R `optimize`)
+  on a sum that R accumulates in long double and numpy in double, so `df.prior` agrees with R to
+  about 1e-9 relative, not to machine precision.
