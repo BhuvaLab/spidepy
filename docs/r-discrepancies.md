@@ -101,3 +101,9 @@ One bullet per item: what R does, what spidepy does, and why.
   caller's object untouched; `spide` builds the niche matrix in place (to avoid copying the counts)
   and removes it from `adata.obsm` once the fit is done. A niche matrix already present is used
   and kept.
+- **`spiGSEA` argument matching.** R's `match.arg` accepts unambiguous prefixes (`type = "self"`,
+  `test = "pool"`, `pooled.df = "prop"`). `spi_gsea` takes exact values only, as `test_spide`
+  does; an unknown value raises `ValueError`. Also `spi_gsea` refuses anything but a
+  `SpiDEResults` with a `TypeError` (R dispatches and errors on the missing method).
+- **`spiGSEA` direction of a missing statistic.** R writes `NA_character_`; `spi_gsea` uses
+  `None` in the `direction` column (object dtype).
