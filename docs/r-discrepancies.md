@@ -59,3 +59,14 @@ One bullet per item: what R does, what spidepy does, and why.
 - **`fitFDistRobustly` with two variances** returns `fitFDist`'s result without `df2.shrunk`, as
   R does; reaching that after set-aside genes fails in R (`replacement has length zero`) and
   raises `ValueError` here.
+- **Constant-column test in `_niche_columns`.** R's `var` accumulates in long double, so a niche
+  column of identical values has variance exactly 0 and is dropped. `_design._colvar` does the
+  same (long double, two-pass mean); a plain double mean can leave about 1e-33 and keep the column.
+- **`_partial_block` singularity.** R's `solve` fails when the reciprocal condition number of
+  `Z'WZ` (LAPACK `dgecon` estimate) is below machine epsilon, and the block is then skipped
+  (`NULL`). We compute the exact 1-norm reciprocal condition number from the inverse and apply
+  the same threshold; the two can disagree only for blocks within a few percent of that threshold.
+- **`r2` of the depth blocks.** R uses `lm.fit` (pivoted QR, tolerance 1e-7) for the R^2 of a
+  niche column on a patient's block; we use `numpy.linalg.lstsq`. They agree whenever the block
+  has full column rank (it does for the sections whose df rule applies); a numerically
+  rank-deficient block could drop different directions.
