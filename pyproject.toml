@@ -29,7 +29,8 @@ dependencies = [
     "pandas",
     "anndata>=0.10",
     "matplotlib>=3.8",
-    "spanormpy>=0.1",
+    # spidepy imports private spanormpy modules (_block_design, _edger, _polish_engine, _tps)
+    "spanormpy>=0.1,<0.2",
     "joblib",
     "threadpoolctl",
 ]
@@ -57,6 +58,7 @@ pythonpath = ["."]
 
 [tool.ruff]
 line-length = 100
+extend-exclude = ["*.ipynb", "*.md"]  # documented code keeps its aligned layout
 src = ["src", "tests"]
 
 [tool.ruff.lint]

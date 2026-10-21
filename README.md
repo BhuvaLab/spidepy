@@ -67,15 +67,15 @@ The full list, with reasons, is in [docs/r-discrepancies.md](docs/r-discrepancie
   locale, so labels that mix case or punctuation can order differently from R.
 - **Column names** of the result tables keep R's spelling (`p.heterogeneity`, `q.global`).
 
-Numbers agree with R to numerical closeness in the test suite; where a limma prior is decided by rounding
-noise on very small gene families the page says so.
+Numbers agree with R to numerical closeness in the test suite; the few places where they cannot are listed
+in [docs/r-discrepancies.md](docs/r-discrepancies.md).
 
 ## Citation
 
 Cite the R package, which defines the method:
 
-Bhuva DD, Tan CW. spiDE: context-specific, neighbourhood-dependent differential expression. R package,
-<https://github.com/bhuvad/spiDE>.
+Bhuva DD, Tan CW. spiDE: context-specific, neighbourhood-dependent differential expression. R package
+version 0.99.37, <https://github.com/bhuvad/spiDE>.
 
 ## Licence
 
