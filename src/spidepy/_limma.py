@@ -8,21 +8,31 @@
 ``df.prior`` and ``s2.post``. ``var.prior`` and ``lods`` (``tmixture.matrix``) are not read
 anywhere in spiDE and are not computed.
 
-Matrices are genes x observations, as in R. R ``NA`` is ``nan``. The robust branch
-(``fitFDistRobustly`` and the robust half of ``fitFDistUnequalDF1``) is the next task: the
-``robust`` arguments exist and raise ``NotImplementedError``.
+``fit_f_dist_robustly`` is ``fitFDistRobustly`` (Winsorised moments of the log variances,
+used by ``squeezeVar(robust = TRUE)`` when every gene has the same residual df), and the robust
+half of ``fitFDistUnequalDF1`` (FDR prior weights, then df shrinkage for right outliers) covers
+unequal residual df.
+
+Matrices are genes x observations, as in R. R ``NA`` is ``nan``.
 """
 
 from __future__ import annotations
 
+import math
 import warnings
 
 import numpy as np
 from scipy import special, stats
+from spanormpy._edger import (
+    _loess_fit_unweighted,
+    _pf_upper_log,
+    _winsorized_moments,
+    _zeroin2,
+)
 from spanormpy._polish_engine import brent_fmin
 from spanormpy._tps import _design, _ns_knots
 
-__all__ = ["lm_fit", "fit_f_dist", "squeeze_var", "e_bayes"]
+__all__ = ["lm_fit", "fit_f_dist", "fit_f_dist_robustly", "squeeze_var", "e_bayes"]
 
 _QR_TOL = 1e-7  # lm.fit / lm.wfit default rank tolerance
 
@@ -640,21 +650,35 @@ def _loess_fit_trend(y, x, weights, span, min_weight, max_weight) -> np.ndarray:
     return fitted
 
 
+def _p_adjust_bh(p: np.ndarray) -> np.ndarray:
+    """``p.adjust(p, method = "BH")`` (no missing values)."""
+    n = len(p)
+    o = np.argsort(-p, kind="stable")
+    ro = np.argsort(o, kind="stable")
+    i = np.arange(n, 0, -1)
+    return np.minimum(1.0, np.minimum.accumulate(n / i * p[o]))[ro]
+
+
 def _choose_lowess_span(n: int, small_n: float = 50, min_span: float = 0.3, power=1 / 3) -> float:
     """limma ``chooseLowessSpan``."""
     return min(min_span + (1 - min_span) * (small_n / n) ** power, 1.0)
 
 
-def _fit_f_dist_unequal_df1(x, df1, covariate=None, span=None, robust=False):
+def _fit_f_dist_unequal_df1(
+    x, df1, covariate=None, span=None, robust=False, prior_weights=None
+) -> dict:
     """limma ``fitFDistUnequalDF1``: maximum-likelihood ``df2`` for genes with different df.
 
     The prior scale (log) is the weighted mean of ``log(x) + log(1/psi(df/2)...)`` (weights
     ``1/trigamma(df1/2)``) or, with a covariate, its weighted lowess trend; ``df2`` maximises the
     F likelihood by Brent's method on ``par = df2/2 / (1 + df2/2)`` in (0.5, 0.9998).
-    Returns ``(scale, df2)`` (``nan`` if fewer than two informative genes).
+    With ``robust`` the genes are tested two-sided against the fitted prior, Benjamini-Hochberg
+    FDRs (capped to 1 above 0.3) become prior weights for a refit, and ``df2_shrunk`` lowers the
+    prior df of right-outlying genes.
+
+    Returns a dict with ``scale`` and ``df2`` (``nan`` if fewer than two informative genes);
+    robust fits that found outliers add ``df2_outlier`` and the per-gene ``df2_shrunk``.
     """
-    if robust:
-        raise NotImplementedError("robust eBayes is not implemented yet")
     x = np.array(x, dtype=float, copy=True).ravel()
     n = len(x)
     df1 = np.array(df1, dtype=float, copy=True).ravel()
@@ -669,9 +693,17 @@ def _fit_f_dist_unequal_df1(x, df1, covariate=None, span=None, robust=False):
         if np.isnan(covariate).any():
             raise ValueError("prior.weights contain NA values")
     prior_w = None
+    if prior_weights is not None:
+        prior_w = np.array(prior_weights, dtype=float, copy=True).ravel()
+        if len(prior_w) != n:
+            raise ValueError("x and covariate are different lengths")
+        if np.isnan(prior_w).any():
+            raise ValueError("prior.weights contain NA values")
+        if prior_w.min() < 0:
+            raise ValueError("prior.weights are negative")
     if np.isnan(x).any():
         i = np.isnan(x)
-        prior_w = (~i).astype(float)
+        prior_w = (~i).astype(float) if prior_w is None else np.where(i, 0.0, prior_w)
         x[i] = 0.0
     if df1.min() < 0.01:
         i = df1 < 0.01
@@ -682,13 +714,13 @@ def _fit_f_dist_unequal_df1(x, df1, covariate=None, span=None, robust=False):
         informative &= prior_w != 0
     n_inf = int(informative.sum())
     if n_inf < 2:
-        return np.nan, np.nan
+        return {"scale": np.nan, "df2": np.nan}
     # R sets prior.weights to NULL here but keeps its PriorWeights flag: with NA / tiny-df genes
     # present the weighted branch then runs on NULL weights, so emean is 0/0 and the objective is
     # sum(NULL * ...) = 0 for every df2. Reproduced below (scale is NaN, df2 is Brent's start).
     r_null_weights_accident = n_inf == 2 and prior_w is not None
     if n_inf == 2:
-        covariate, prior_w = None, None
+        covariate, prior_w, robust = None, None, False
     m = float(np.median(x[informative]))
     xpos = np.maximum(x, 1e-12 * m)
     d1 = df1 / 2
@@ -731,7 +763,60 @@ def _fit_f_dist_unequal_df1(x, df1, covariate=None, span=None, robust=False):
     par = brent_fmin(minus_twice_loglik, 0.5, 0.9998)
     d2 = par / (1 - par)
     s20 = np.exp(emean - _logmdigamma(d2))
-    return (float(s20) if np.ndim(s20) == 0 else s20), 2 * float(d2)
+    if np.ndim(s20) == 0:
+        s20 = float(s20)
+    df2 = 2 * float(d2)
+    if not robust:
+        return {"scale": s20, "df2": df2}
+
+    # two-sided outlier test against the fitted prior; the BH FDR (1 above 0.3) is the
+    # approximate probability of not being an outlier
+    df1n = np.broadcast_to(df1, (n,))
+    fstat = x / s20
+    right_p = stats.f.sf(fstat, df1n, df2)
+    left_p = 1 - right_p
+    if left_p.min() < 0.001:
+        i = left_p < 0.001
+        left_p[i] = stats.f.cdf(fstat[i], df1n[i], df2)
+    fdr = _p_adjust_bh(2 * np.minimum(left_p, right_p))
+    fdr[fdr > 0.3] = 1.0
+    if fdr.min() == 1:
+        return {"scale": s20, "df2": df2}
+
+    # refit with the FDRs as prior weights. R's Recall() drops `span`, so a user span is
+    # not used for the refit trend (logged in docs/r-discrepancies.md)
+    outpw = _fit_f_dist_unequal_df1(x, df1, covariate=covariate, robust=False, prior_weights=fdr)
+    s20, df2 = outpw["scale"], outpw["df2"]
+
+    # qqplot-type method for right outliers
+    r = stats.rankdata(fstat)
+    uniform_p = (n - r + 0.5) / n
+    prob_not_outlier = np.minimum(right_p / uniform_p, 1)
+    if prob_not_outlier.min() == 1:
+        return outpw
+
+    # df2 of the outlier distribution makes the largest F statistic its median
+    i = int(np.argmin(right_p))
+    min_right_p = right_p[i]
+    if min_right_p == 0:
+        df2_outlier = 0.0
+        df2_shrunk = prob_not_outlier * df2
+    else:
+        df2_outlier = math.log(0.5) / math.log(min_right_p) * df2
+        new_log_right_p = float(_pf_upper_log(fstat[i : i + 1], df1n[i], df2_outlier)[0])
+        df2_outlier = math.log(0.5) / new_log_right_p * df2_outlier
+        df2_shrunk = prob_not_outlier * df2 + (1 - prob_not_outlier) * df2_outlier
+    if np.isnan(df2_shrunk).any():  # R: 1:integer(0) fails when which.min finds nothing
+        raise ValueError("argument of length 0")
+    # df2_shrunk monotone in RightP
+    o = np.argsort(right_p, kind="stable")
+    ordered = df2_shrunk[o]
+    m = np.cumsum(ordered) / np.arange(1, n + 1)
+    imin = int(np.argmin(m))
+    ordered[: imin + 1] = m[imin]
+    df2_shrunk = np.empty(n)
+    df2_shrunk[o] = np.maximum.accumulate(ordered)
+    return {"scale": s20, "df2": df2, "df2_outlier": df2_outlier, "df2_shrunk": df2_shrunk}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -789,13 +874,14 @@ def squeeze_var(
         legacy = len(dfp) > 0 and dfp.min() == dfp.max()
     if legacy:
         if robust:
-            fit_scale, df_prior = _fit_f_dist_robustly(var, df, covariate, winsor_tail_p)
+            fit = fit_f_dist_robustly(var, df, covariate, winsor_tail_p)
+            fit_scale, df_prior = fit["scale"], fit["df2_shrunk"]
         else:
             fit_scale, df_prior = fit_f_dist(var, df, covariate)
     else:
-        fit_scale, df_prior = _fit_f_dist_unequal_df1(
-            var, df, covariate=covariate, span=span, robust=robust
-        )
+        fit = _fit_f_dist_unequal_df1(var, df, covariate=covariate, span=span, robust=robust)
+        fit_scale = fit["scale"]
+        df_prior = fit.get("df2_shrunk", fit["df2"])
     if np.isnan(df_prior).any():
         raise ValueError("Could not estimate prior df")
     return {
@@ -805,9 +891,222 @@ def squeeze_var(
     }
 
 
-def _fit_f_dist_robustly(x, df1, covariate=None, winsor_tail_p=(0.05, 0.1)):
-    """limma ``fitFDistRobustly`` (the robust branch of ``squeeze_var``; a later task)."""
-    raise NotImplementedError("robust eBayes is not implemented yet")
+def _trimmed_mean(z: np.ndarray, trim: float) -> float:
+    """R ``mean(z, trim = trim)`` (``trim >= 0.5`` gives the median)."""
+    n = len(z)
+    if trim >= 0.5:
+        return float(np.median(z))
+    lo = math.floor(n * trim)
+    return float(np.mean(np.sort(z)[lo : n - lo]))
+
+
+def _pf_log(f, df1, df2, lower: bool):
+    """``pf(f, df1, df2, lower.tail = lower, log.p = TRUE)`` (``df2`` may be ``inf``)."""
+    f = np.asarray(f, dtype=float)
+    if not lower:
+        return _pf_upper_log(f, df1, df2)
+    if np.isinf(df2):
+        return stats.chi2.logcdf(f * df1, df1)
+    return stats.f.logcdf(f, df1, df2)
+
+
+def _qf_log(logp, df1, df2, lower: bool):
+    """``qf(logp, df1, df2, lower.tail = lower, log.p = TRUE)`` (``df2`` may be ``inf``)."""
+    p = np.exp(np.asarray(logp, dtype=float))
+    if np.isinf(df2):
+        q = stats.chi2.ppf(p, df1) if lower else stats.chi2.isf(p, df1)
+        return q / df1
+    return stats.f.ppf(p, df1, df2) if lower else stats.f.isf(p, df1, df2)
+
+
+def _approx_ties_mean(x, y, xout) -> np.ndarray:
+    """``approx(x, y, xout, rule = 2, ties = mean)$y``: linear, constant outside the range."""
+    ux, inv = np.unique(x, return_inverse=True)
+    uy = np.bincount(inv, weights=y) / np.bincount(inv)
+    return np.interp(xout, ux, uy)
+
+
+def fit_f_dist_robustly(x, df1, covariate=None, winsor_tail_p=(0.05, 0.1)) -> dict:
+    """Robust moment estimates of the scaled F prior (limma ``fitFDistRobustly``).
+
+    Matches the variance of the Winsorised log variances (after removing the mean, or a
+    ``loessFit(span = 0.4)`` trend on ``covariate``) to its theoretical value under
+    ``scale * F(df1, df2)``, and shrinks ``df2`` per gene for variances in the right tail
+    (``df2_shrunk``), which is what ``squeeze_var`` uses as the prior df.
+
+    Parameters
+    ----------
+    x : array (n,)
+        Sample variances; ``nan`` and values with ``df1 <= 1e-6`` are set aside (their
+        ``df2_shrunk`` is ``df2`` and their trend scale is interpolated).
+    df1 : float or array (n,)
+        Residual df of ``x``. Unequal values are first transformed to the largest df by
+        matching tail probabilities.
+    covariate : array (n,) or None
+        Trend covariate (finite).
+    winsor_tail_p : pair of float
+        Lower and upper Winsorising tail probabilities.
+
+    Returns
+    -------
+    dict
+        ``scale`` (float, or array (n,) with a covariate), ``df2`` (float, possibly ``inf``),
+        ``df2_shrunk`` (n,), and, when computed, ``tail_p_value``, ``prob_outlier`` and
+        ``df2_outlier``.
+    """
+    x = np.array(x, dtype=float, copy=True).ravel()
+    n = len(x)
+    if n < 2:
+        return {"scale": np.nan, "df2": np.nan, "df2_shrunk": np.nan}
+    if n == 2:
+        scale, df2 = fit_f_dist(x, df1, covariate)
+        return {"scale": scale, "df2": df2}
+    df1 = np.array(df1, dtype=float, copy=True).ravel()
+    if len(df1) not in (1, n):
+        raise ValueError("x and df1 are different lengths")
+    if covariate is not None:
+        covariate = np.asarray(covariate, dtype=float).ravel()
+        if len(covariate) != n:
+            raise ValueError("x and covariate are different lengths")
+        if not np.isfinite(covariate).all():
+            raise ValueError("covariate contains NA or infinite values")
+    ok = ~np.isnan(x) & np.isfinite(df1) & (df1 > 1e-6)
+    ok = np.broadcast_to(ok, (n,))
+    if not ok.all():
+        covariate2 = None if covariate is None else covariate[~ok]
+        fit = fit_f_dist_robustly(
+            x[ok],
+            df1[ok] if len(df1) > 1 else df1,
+            None if covariate is None else covariate[ok],
+            winsor_tail_p,
+        )
+        if "df2_shrunk" not in fit:
+            raise ValueError("replacement has length zero")  # R: NULL assigned into a vector
+        df2_shrunk = x.copy()  # R starts from x; both subsets are overwritten below
+        df2_shrunk[ok] = fit["df2_shrunk"]
+        df2_shrunk[~ok] = fit["df2"]
+        if covariate is None:
+            scale = fit["scale"]
+        else:
+            scale = np.empty(n)
+            scale[ok] = fit["scale"]
+            scale[~ok] = np.exp(_approx_ties_mean(covariate[ok], np.log(fit["scale"]), covariate2))
+        return {"scale": scale, "df2": fit["df2"], "df2_shrunk": df2_shrunk}
+
+    # avoid zero or negative x values
+    m = float(np.median(x))
+    if m <= 0:
+        raise ValueError("Variances are mostly <= 0")
+    x[x < m * 1e-12] = m * 1e-12
+
+    # non-robust estimates, also the lower bound for df2
+    nr_scale, nr_df2 = fit_f_dist(x, df1, covariate)
+
+    wtp = np.resize(np.asarray(winsor_tail_p, dtype=float), 2)
+    prob = np.array([wtp[0], 1 - wtp[1]])
+    if (wtp < 1 / n).all():
+        return {"scale": nr_scale, "df2": nr_df2, "df2_shrunk": np.full(n, nr_df2)}
+
+    # transform x to the largest df1
+    if len(df1) > 1:
+        df1max = df1.max()
+        i = df1 < df1max - 1e-14
+        if i.any():
+            s = np.asarray(nr_scale)
+            s = s[i] if s.ndim else float(s)
+            f = x[i] / s
+            pupper = _pf_log(f, df1[i], nr_df2, lower=False)
+            plower = _pf_log(f, df1[i], nr_df2, lower=True)
+            up = pupper < plower
+            if up.any():
+                f[up] = _qf_log(pupper[up], df1max, nr_df2, lower=False)
+            if (~up).any():
+                f[~up] = _qf_log(plower[~up], df1max, nr_df2, lower=True)
+            x[i] = f * s
+            df1 = np.array([df1max])
+    df1 = float(df1[0])
+
+    z = np.log(x)
+    if covariate is None:
+        ztrend = _trimmed_mean(z, wtp[1])
+        zresid = z - ztrend
+    else:
+        ztrend, zresid = _loess_fit_unweighted(z, covariate, 0.4)
+
+    # moments of Winsorised residuals
+    zrq = np.quantile(zresid, prob)
+    zwins = np.minimum(np.maximum(zresid, zrq[0]), zrq[1])
+    zwmean = float(np.mean(zwins))
+    zwvar = float(np.mean((zwins - zwmean) ** 2)) * n / (n - 1)
+
+    # try df2 == Inf
+    mom = _winsorized_moments(df1, np.inf, wtp)
+    funval_inf = math.log(zwvar / mom[1])
+    if funval_inf <= 0:
+        ztc = ztrend + zwmean - mom[0]
+        fstat = np.exp(z - ztc)
+        tail_p = stats.chi2.sf(fstat * df1, df1)
+        r = stats.rankdata(fstat)
+        prob_not_outlier = np.minimum(tail_p / ((n - r + 0.5) / n), 1)
+        df2_shrunk = np.full(n, np.inf)
+        o_mask = prob_not_outlier < 1
+        if o_mask.any():
+            df2_shrunk[o_mask] = prob_not_outlier[o_mask] * (n * df1)
+            o = np.argsort(tail_p, kind="stable")
+            df2_shrunk[o] = np.maximum.accumulate(df2_shrunk[o])
+        return {"scale": np.exp(ztc), "df2": np.inf, "tail_p_value": tail_p,
+                "df2_shrunk": df2_shrunk}  # fmt: skip
+
+    # estimate df2 by matching the variance of the Winsorised z
+    def fun(t):
+        d2 = t / (1 - t)
+        return math.log(zwvar / _winsorized_moments(df1, d2, wtp)[1])
+
+    if nr_df2 == np.inf:
+        return {"scale": nr_scale, "df2": nr_df2, "df2_shrunk": np.full(n, np.inf)}
+    rbx = nr_df2 / (1 + nr_df2)
+    funval_low = fun(rbx)
+    if funval_low >= 0:
+        df2 = nr_df2
+    else:
+        root = _zeroin2(fun, rbx, 1.0, funval_low, funval_inf, 1e-8)
+        df2 = root / (1 - root)
+
+    # correct ztrend for bias
+    mom = _winsorized_moments(df1, df2, wtp)
+    ztc = ztrend + zwmean - mom[0]
+    fstat = np.exp(z - ztc)
+    log_tail_p = _pf_log(fstat, df1, df2, lower=False)
+    tail_p = np.exp(log_tail_p)
+    r = stats.rankdata(fstat)
+    log_emp = np.log(n - r + 0.5) - math.log(n)
+    log_pno = np.minimum(log_tail_p - log_emp, 0)
+    pno = np.exp(log_pno)
+    pout = -np.expm1(log_pno)
+    if (log_pno < 0).any():
+        # df2.outlier makes the largest F statistic the median of its distribution
+        min_log_tail_p = float(log_tail_p.min())
+        if min_log_tail_p == -np.inf:
+            df2_outlier = 0.0
+            df2_shrunk = pno * df2
+        else:
+            df2_outlier = math.log(0.5) / min_log_tail_p * df2
+            new_log = float(_pf_log(np.array([fstat.max()]), df1, df2_outlier, lower=False)[0])
+            df2_outlier = math.log(0.5) / new_log * df2_outlier
+            df2_shrunk = pno * df2 + pout * df2_outlier
+        # force df2.shrunk monotone in TailP
+        o = np.argsort(log_tail_p, kind="stable")
+        ordered = df2_shrunk[o]
+        mm = np.cumsum(ordered) / np.arange(1, n + 1)
+        imin = int(np.argmin(mm))
+        ordered[: imin + 1] = mm[imin]
+        df2_shrunk = np.empty(n)
+        df2_shrunk[o] = np.maximum.accumulate(ordered)
+    else:
+        df2_outlier = df2
+        df2_shrunk = np.full(n, df2)
+    return {"scale": np.exp(ztc), "df2": df2, "tail_p_value": tail_p, "prob_outlier": pout,
+            "df2_outlier": df2_outlier, "df2_shrunk": df2_shrunk}  # fmt: skip
 
 
 def e_bayes(
@@ -833,7 +1132,7 @@ def e_bayes(
     trend : bool or array (G,)
         Fit the prior variance as a trend on ``Amean`` (or on the given covariate).
     robust : bool
-        Not implemented yet (raises ``NotImplementedError``).
+        Estimate the prior robustly against outlying variances (``df_prior`` is then per gene).
 
     Returns
     -------

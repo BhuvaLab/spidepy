@@ -46,3 +46,16 @@ One bullet per item: what R does, what spidepy does, and why.
 - **Unequal-df prior to ~1e-9.** `fitFDistUnequalDF1` finds `df2` by Brent's method (R `optimize`)
   on a sum that R accumulates in long double and numpy in double, so `df.prior` agrees with R to
   about 1e-9 relative, not to machine precision.
+- **Robust `fitFDistUnequalDF1` drops `span` in its refit.** R refits with prior weights through
+  `Recall(x, df1, covariate, robust = FALSE, prior.weights = FDR)`, which omits `span`, so the
+  refit trend always uses the default `chooseLowessSpan(n, small.n = 500)`. We do the same.
+- **Robust fits with tied F statistics.** `fitFDistRobustly` ranks the F statistics for
+  `prob.outlier`. When a trend interpolates several genes exactly their statistics tie up to
+  rounding noise (about 1e-16) and the ranks, hence `prob.outlier` and `df2.shrunk` of those
+  genes, depend on the last bits (R and numpy can differ). Not matched beyond rounding.
+- **`qf` with `log.p`.** `fitFDistRobustly` with unequal `df1` calls `qf(..., log.p = TRUE)`;
+  scipy has no log-scale quantile, so we use `exp(logp)` first. Identical unless the tail
+  probability underflows (about 1e-308).
+- **`fitFDistRobustly` with two variances** returns `fitFDist`'s result without `df2.shrunk`, as
+  R does; reaching that after set-aside genes fails in R (`replacement has length zero`) and
+  raises `ValueError` here.

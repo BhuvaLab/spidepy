@@ -161,17 +161,6 @@ def test_squeeze_var_fewer_than_three_genes(ref):
         L.squeeze_var([], [])
 
 
-def test_squeeze_var_robust_is_not_implemented_yet(ref):
-    c = ref("limma")["sqz"]["equal_flat"]
-    with pytest.raises(NotImplementedError):
-        L.squeeze_var(c["var"], c["df"], robust=True)
-    with pytest.raises(NotImplementedError):
-        L.squeeze_var(c["var"], np.arange(1, 301) % 7 + 1, robust=True)
-    c = ref("limma")["pooled_n7"]
-    with pytest.raises(NotImplementedError):
-        L.e_bayes(_fit(c), robust=True)
-
-
 def test_e_bayes_errors(ref):
     fit = _fit(ref("limma")["pooled_n7"])
     with pytest.raises(ValueError, match="Need Amean"):
@@ -246,7 +235,8 @@ def test_fit_f_dist_unequal_df1_matches_limma(ref, case):
     # prior.weights but keeps its flag, so scale is NaN and df2 is Brent's value on a flat objective
     c = ref("limma")["fdu"][case]
     cov = ref("limma")["sqz"]["unequal_trend_ties"]["cov"][:100] if case == "ties_trend" else None
-    scale, df2 = L._fit_f_dist_unequal_df1(c["x"], c["df1"], covariate=cov)
+    got = L._fit_f_dist_unequal_df1(c["x"], c["df1"], covariate=cov)
+    scale, df2 = got["scale"], got["df2"]
     if case.startswith("two_acc"):
         assert np.isnan(c["scale"]) and np.isnan(scale)
     _close(scale, c["scale"], f"{case}:scale", RTOL_ITER)
@@ -255,7 +245,8 @@ def test_fit_f_dist_unequal_df1_matches_limma(ref, case):
 
 def test_fit_f_dist_unequal_df1_one_informative_gene(ref):
     c = ref("limma")["fdu"]["one"]
-    scale, df2 = L._fit_f_dist_unequal_df1(c["x"], c["df1"])
+    got = L._fit_f_dist_unequal_df1(c["x"], c["df1"])
+    scale, df2 = got["scale"], got["df2"]
     assert np.isnan(scale) and np.isnan(df2)
     assert np.isnan(c["scale"]) and np.isnan(c["df2"])
 
@@ -280,3 +271,142 @@ def test_dqrdc2_rank_pivots_negligible_columns_last():
     assert rank == 3
     assert list(pivot) == [0, 1, 3, 2]  # the duplicate (third) column is moved to the end
     assert L._dqrdc2_rank(np.zeros((3, 2)))[0] == 0
+
+
+# ---- robust empirical Bayes (tests/ref/make_limma_robust.R) --------------------------------------
+# fitFDistRobustly finds df2 with uniroot (Brent, tol 1e-8) and fitFDistUnequalDF1 with optimize
+# (Brent); both optima are known to ~1e-8 relative only, so everything is compared at RTOL_ITER.
+ROB_KEYS = ("scale", "df2", "df2_shrunk", "tail_p_value", "prob_outlier", "df2_outlier")
+
+
+def _check_robust_fit(got, want, case):
+    for key in ROB_KEYS:
+        if key in want:
+            assert key in got, f"{case}: missing {key}"
+            _close(got[key], want[key], f"{case}:{key}", RTOL_ITER)
+
+
+# "small_trend_10" is in the reference file but not tested: its lowess trend interpolates four genes
+# exactly, so their F statistics tie up to 1e-16 and R's own ranks (hence prob.outlier) depend on
+# rounding noise.
+FR = ["flat_clean", "flat_hi", "flat_lo", "flat_both", "trend_clean", "trend_hi", "trend_lo",
+      "trend_both", "big_trend", "small_flat_6", "small_trend_6", "small_flat_8",
+      "small_trend_8", "small_flat_10", "small_flat_12", "small_trend_12",
+      "small_flat_16", "small_trend_16", "small_flat_30", "small_trend_30", "inf_flat",
+      "inf_flat_out", "inf_trend", "df2_big", "ties_trend", "ties_trend_small", "const_cov",
+      "wtp_small", "wtp_other", "notallok_trend", "notallok_flat", "notallok_ties", "zero_var",
+      "unequal_flat", "unequal_trend", "unequal_lo", "unequal_wide"]  # fmt: skip
+
+
+@pytest.mark.parametrize("case", FR)
+def test_fit_f_dist_robustly_matches_limma(ref, case):
+    c = ref("limma_robust")["fr"][case]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        got = L.fit_f_dist_robustly(
+            c["x"], c["df1"], c.get("cov"), winsor_tail_p=tuple(np.atleast_1d(c["wtp"]))
+        )
+    _check_robust_fit(got, c, case)
+
+
+def test_fit_f_dist_robustly_branches(ref):
+    # the reference cases must cover every return path of fitFDistRobustly
+    fr = ref("limma_robust")["fr"]
+    assert np.isinf(fr["inf_flat"]["df2"]) and "tail_p_value" in fr["inf_flat"]  # df2 = Inf
+    assert "prob_outlier" in fr["flat_hi"] and "df2_outlier" in fr["flat_hi"]  # shrinkage
+    assert "prob_outlier" not in fr["wtp_small"]  # tails below 1/n: non-robust returned
+    assert "prob_outlier" not in fr["small_flat_6"]
+    hi, lo = fr["flat_hi"], fr["flat_lo"]
+    assert hi["df2_shrunk"].min() < hi["df2"]  # right outliers shrink the prior df
+    assert lo["df2_shrunk"].min() <= lo["df2"]
+
+
+def test_fit_f_dist_robustly_degenerate_inputs():
+    r = L.fit_f_dist_robustly(np.array([1.0]), 3)
+    assert np.isnan(r["scale"]) and np.isnan(r["df2"]) and np.isnan(r["df2_shrunk"])
+    scale, df2 = L.fit_f_dist(np.array([1.0, 2.0]), 3)
+    r = L.fit_f_dist_robustly(np.array([1.0, 2.0]), 3)
+    assert (r["scale"], r["df2"]) == (scale, df2) and "df2_shrunk" not in r
+    with pytest.raises(ValueError, match="different lengths"):
+        L.fit_f_dist_robustly(np.ones(5), np.ones(4))
+    with pytest.raises(ValueError, match="covariate contains"):
+        L.fit_f_dist_robustly(np.ones(5), 3, np.array([1.0, 2, np.nan, 3, 4]))
+    with pytest.raises(ValueError, match="mostly <= 0"):
+        L.fit_f_dist_robustly(np.array([0.0, 0.0, 0.0, 1.0, 2.0]), 3)
+
+
+FU = ["flat_clean", "flat_hi", "flat_lo", "flat_both", "trend_hi", "trend_both", "trend_span",
+      "small_flat_6", "small_trend_6", "small_flat_8", "small_trend_8", "small_flat_12",
+      "small_trend_12", "small_flat_16", "small_trend_16", "small_flat_40", "small_trend_40",
+      "ties_trend", "ties_small", "na_flat", "na_trend", "scalar_df", "big_trend",
+      "extreme"]  # fmt: skip
+
+
+@pytest.mark.parametrize("case", FU)
+def test_fit_f_dist_unequal_df1_robust_matches_limma(ref, case):
+    c = ref("limma_robust")["fu"][case]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        got = L._fit_f_dist_unequal_df1(
+            c["x"], c["df1"], covariate=c.get("cov"), span=c.get("span"), robust=True
+        )
+    _check_robust_fit(got, c, case)
+
+
+def test_fit_f_dist_unequal_df1_robust_branches(ref):
+    fu = ref("limma_robust")["fu"]
+    assert "df2_shrunk" in fu["flat_hi"] and "df2_outlier" in fu["flat_hi"]  # right outliers
+    assert "df2_shrunk" not in fu["flat_clean"]  # no outlier: non-robust estimate returned
+    assert any("df2_shrunk" not in v for v in fu.values())
+    assert any("df2_shrunk" in v for v in fu.values())
+
+
+SQR = ["equal_flat", "equal_trend", "unequal_flat", "unequal_trend", "df0_equal_trend",
+       "df0_equal_flat", "df0_unequal_trend", "small_equal", "small_unequal",
+       "span_unequal"]  # fmt: skip
+
+
+@pytest.mark.parametrize("case", SQR)
+def test_squeeze_var_robust_matches_limma(ref, case):
+    c = ref("limma_robust")["sq"][case]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        got = L.squeeze_var(
+            c["var"], c["df"], covariate=c.get("cov"), span=c.get("span"), robust=True
+        )
+    for key in ("df_prior", "var_prior", "var_post"):
+        _close(got[key], c[key], f"{case}:{key}", RTOL_ITER)
+
+
+EBR = ["pooled_n4", "pooled_n7", "pooled_n16", "equal_df", "no_w", "few_equal_6", "few_equal_9",
+       "few_equal_16", "few_na_6", "few_na_9", "few_na_16", "niche_w", "niche_nw",
+       "ties_cov"]  # fmt: skip
+
+
+@pytest.mark.parametrize("case", EBR)
+@pytest.mark.parametrize("trend", [True, False])
+def test_e_bayes_robust_matches_limma(ref, case, trend):
+    # intercept-only weighted lmFit with NA observations, then eBayes(robust = TRUE) with the
+    # log-mean-expression stand-in for Amean, as spiDE's pooled test does
+    c = ref("limma_robust")["eb"][case]
+    i = c["input"]
+    fit = L.lm_fit(i["Y"], i["X"], i.get("W"))
+    fit["Amean"] = i["cov"]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        got = L.e_bayes(fit, trend=trend, robust=True)
+    want = c["eb_trend" if trend else "eb_flat"]
+    for key in ("t", "p_value", "df_total", "s2_prior", "df_prior", "s2_post"):
+        _close(got[key], want[key], f"{case}:{trend}:{key}", RTOL_ITER)
+
+
+def test_e_bayes_robust_df_prior_is_per_gene(ref):
+    c = ref("limma_robust")["eb"]["equal_df"]
+    i = c["input"]
+    fit = L.lm_fit(i["Y"], i["X"], i.get("W"))
+    fit["Amean"] = i["cov"]
+    robust = L.e_bayes(fit, trend=True, robust=True)
+    plain = L.e_bayes(fit, trend=True)
+    assert robust["df_prior"].shape == fit["sigma"].shape  # df2.shrunk, one per gene
+    assert np.ndim(plain["df_prior"]) == 0
+    assert robust["df_prior"].min() < plain["df_prior"]  # outlying genes are shrunk less
