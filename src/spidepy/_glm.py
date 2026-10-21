@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import numpy as np
 import scipy.sparse as sp
+from joblib import Parallel, delayed, effective_n_jobs
 from scipy.stats import nbinom
 from spanormpy import polish_nb
 
@@ -142,3 +143,29 @@ def _working_wr(y, W, alpha, psi, offset=0.0) -> dict:
     mu = np.exp(_lin_pred(W, alpha) + offset)
     d = 1.0 + psi * mu
     return {"w": mu / d, "r": (np.asarray(y, dtype=float) - mu) / d, "mu": mu}
+
+
+def _bp_genes(G: int, fun, n_jobs: int = 1) -> list:
+    """Run ``fun`` over blocks of gene indices and return the block results in order (``.bpGenes``).
+
+    The ``G`` genes are cut into ``min(G, 4 * workers)`` contiguous blocks (one block when there is
+    a single worker or gene), so each worker gets a few blocks rather than one task per gene.
+    ``fun`` receives the 0-based indices of a block; with ``n_jobs > 1`` blocks run on threads,
+    each limited to one BLAS thread (R pins one per worker) when ``threadpoolctl`` is available.
+    The result never depends on ``n_jobs``.
+    """
+    nw = max(1, effective_n_jobs(n_jobs))
+    nch = min(G, nw * 4)
+    chunks = np.array_split(np.arange(G), max(nch, 1))
+
+    def single(idx):
+        try:
+            from threadpoolctl import threadpool_limits
+        except ImportError:  # optional: only avoids BLAS oversubscription
+            return fun(idx)
+        with threadpool_limits(limits=1):
+            return fun(idx)
+
+    if nw > 1:
+        return Parallel(n_jobs=nw, backend="threading")(delayed(single)(c) for c in chunks)
+    return [fun(c) for c in chunks]
