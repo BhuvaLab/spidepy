@@ -20,8 +20,7 @@ import pytest  # noqa: E402
 from matplotlib.figure import Figure  # noqa: E402
 
 import spidepy  # noqa: E402
-from _fitref import frame  # noqa: E402
-from _plotref import fit_from_dump, plot_ref, plot_spe, res_from_dump  # noqa: E402
+from _plotref import fit_from_dump, plot_ref, plot_spe, res_from_dump, same_frame  # noqa: E402
 from spidepy import pl  # noqa: E402
 from spidepy.pl import _niche as N  # noqa: E402
 from spidepy.pl import _theme as T  # noqa: E402
@@ -45,29 +44,6 @@ def fit(R):
 @pytest.fixture(scope="module")
 def res(R):
     return res_from_dump(R["res"])
-
-
-def same_frame(got: pd.DataFrame, ref: dict, what: str, rtol=1e-10, atol=1e-12):
-    """A DataFrame against R's data frame: column names, row order, labels, numbers at 1e-10."""
-    ref = frame(ref)
-    assert list(got.columns) == list(ref.columns), what
-    assert len(got) == len(ref), f"{what}: {len(got)} rows vs {len(ref)}"
-    for c in ref.columns:
-        a, b = got[c].to_numpy(), ref[c].to_numpy()
-        if b.dtype.kind in "fiu":
-            np.testing.assert_array_equal(np.isnan(a.astype(float)), np.isnan(b.astype(float)), c)
-            ok = ~np.isnan(b.astype(float))
-            np.testing.assert_allclose(
-                a.astype(float)[ok],
-                b.astype(float)[ok],
-                rtol=rtol,
-                atol=atol,
-                err_msg=f"{what}.{c}",
-            )
-        elif b.dtype.kind == "b" or a.dtype.kind == "b":
-            np.testing.assert_array_equal(a.astype(bool), b.astype(bool), err_msg=f"{what}.{c}")
-        else:
-            assert [str(x) for x in a] == [str(x) for x in b], f"{what}.{c}"
 
 
 def panels(fig):

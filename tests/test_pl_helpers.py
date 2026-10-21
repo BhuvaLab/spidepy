@@ -374,3 +374,16 @@ def test_checkers_name_what_is_wrong(spe, fit, res):
         check_triplet(fit, "A", "Z")
     with pytest.raises(ValueError, match="not tested in A: nope"):
         check_triplet(fit, "A", "B", ["G1", "nope"])
+
+
+def test_index_cell_data_sparse_equals_dense(spe, fit):
+    import scipy.sparse as sp
+
+    sparse = spe.copy()
+    sparse.X = sp.csr_matrix(sparse.X)
+    sparse.layers["counts"] = sp.csr_matrix(sparse.layers["counts"])
+    a = H._index_cell_data(spe, fit, "A", "B", ["G2", "G1"])
+    b = H._index_cell_data(sparse, fit, "A", "B", ["G2", "G1"])
+    for k in a:
+        np.testing.assert_array_equal(np.asarray(a[k]), np.asarray(b[k]), err_msg=k)
+    assert b["counts"].shape == (2, len(b["lib"]))

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import math
 import re
+import textwrap
 from collections.abc import Iterator
 from contextlib import contextmanager
 
@@ -297,15 +298,17 @@ def _style_legend(leg) -> None:
 def _wrap_dims(n: int) -> tuple[int, int]:
     """``(nrow, ncol)`` of ``facet_wrap`` for ``n`` panels (ggplot2 ``wrap_dims``)."""
     if n <= 3:
-        r, c = n, 1
+        n_a, n_b = n, 1
     elif n <= 6:
-        r, c = (n + 1) // 2, 2
+        n_a, n_b = (n + 1) // 2, 2
     elif n <= 12:
-        r, c = (n + 2) // 3, 3
+        n_a, n_b = (n + 2) // 3, 3
     else:
-        r = math.ceil(math.sqrt(n))
-        c = math.ceil(n / r)
-    return c, r  # n2mfrow() gives (nrow, ncol) of a base-graphics layout; ggplot2 swaps them
+        n_a = math.ceil(math.sqrt(n))
+        n_b = math.ceil(n / n_a)
+    # n2mfrow() gives (nrow, ncol) of a base-graphics layout, the longer side first; ggplot2's
+    # wrap_dims swaps them, so the longer side is the number of columns here
+    return n_b, n_a
 
 
 # --- plotmath labels -> mathtext -------------------------------------------------------------
@@ -427,3 +430,26 @@ def _blank_panel(ax) -> None:
     ax.set_yticks([])
     ax.set_xlabel("")
     ax.set_ylabel("")
+
+
+def _strwrap(text: str, width: int) -> str:
+    """Lines of fewer than ``width`` characters joined by newlines (R ``strwrap`` pasted with
+    ``"\\n"``); a word longer than a line is kept whole."""
+    lines = textwrap.wrap(str(text), width=width - 1, break_long_words=False)
+    return "\n".join(lines) if lines else ""
+
+
+def _stack_legends(fig, groups, x0: float, y_top: float = 0.9, gap: float = 0.03) -> None:
+    """Stack legends down the right of ``fig``, each below the previous one.
+
+    ``groups`` is a list of ``(title, handles, labels)`` (a title may be ``None``); titles are
+    italic, as in ``theme_spiDE``. Needs a renderer on the figure (an Agg canvas) to measure.
+    """
+    y = y_top
+    renderer = fig.canvas.get_renderer()
+    for title, handles, labels in groups:
+        leg = fig.legend(handles, labels, title=title, loc="upper left", bbox_to_anchor=(x0, y),
+                         frameon=False, alignment="left")  # fmt: skip
+        _style_legend(leg)
+        box = leg.get_window_extent(renderer).transformed(fig.transFigure.inverted())
+        y = box.y0 - gap

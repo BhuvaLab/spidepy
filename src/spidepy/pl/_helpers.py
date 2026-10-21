@@ -210,8 +210,8 @@ def _index_cell_data(
     NM = get_niche(adata, niche_key(name, fit.sigma))
     if niche not in NM.columns:
         raise ValueError(f"niche '{niche}' is not a column of {niche_key(name, fit.sigma)}")
-    cols = Y[:, ik]
-    counts = cols[rows, :]
+    # the plotted genes' rows first, so no genes x cells copy is made (sparse input stays sparse)
+    counts = Y[rows, :][:, ik]
     counts = counts.toarray() if sp.issparse(counts) else np.asarray(counts)
     return {
         "counts": counts.astype(float),

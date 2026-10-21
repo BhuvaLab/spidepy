@@ -52,6 +52,12 @@ def fit_from_dump(d: dict) -> SpiDEFit:
             "loglib_mean": pd.Series(np.atleast_1d(r["loglib_mean"]).astype(float), index=pats),
             "ncells": pd.Series(np.atleast_1d(r["ncells"]).astype(int), index=pats),
         }
+        if "niche_mean" in r:
+            x["niche_mean"] = pd.DataFrame(
+                np.asarray(r["niche_mean"], float).reshape(len(pats), len(nich)),
+                index=pats,
+                columns=nich,
+            )
         if d["engine"] == "slopes":
             shp = (len(genes), len(pats), len(nich))
             x["beta"] = np.asarray(r["beta"], float).reshape(shp)
@@ -93,3 +99,30 @@ def res_from_dump(d: dict) -> SpiDEResults:
         pooled_df=d["pooled_df"] or None,
         fit=fit_from_dump(d["fit"]),
     )
+
+
+def same_frame(got: pd.DataFrame, ref: dict, what: str, rtol=1e-10, atol=1e-12):
+    """A DataFrame against R's data frame: column names, row order, labels, numbers at 1e-10."""
+    ref = frame(ref)
+    # an R integer NA arrives as the integer minimum
+    for c in ref.columns:
+        if ref[c].dtype.kind == "i" and (ref[c] == -2147483648).any():
+            ref[c] = ref[c].astype(float).where(ref[c] != -2147483648)
+    assert list(got.columns) == list(ref.columns), what
+    assert len(got) == len(ref), f"{what}: {len(got)} rows vs {len(ref)}"
+    for c in ref.columns:
+        a, b = got[c].to_numpy(), ref[c].to_numpy()
+        if b.dtype.kind in "fiu":
+            np.testing.assert_array_equal(np.isnan(a.astype(float)), np.isnan(b.astype(float)), c)
+            ok = ~np.isnan(b.astype(float))
+            np.testing.assert_allclose(
+                a.astype(float)[ok],
+                b.astype(float)[ok],
+                rtol=rtol,
+                atol=atol,
+                err_msg=f"{what}.{c}",
+            )
+        elif b.dtype.kind == "b" or a.dtype.kind == "b":
+            np.testing.assert_array_equal(a.astype(bool), b.astype(bool), err_msg=f"{what}.{c}")
+        else:
+            assert [str(x) for x in a] == [str(x) for x in b], f"{what}.{c}"

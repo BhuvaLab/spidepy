@@ -131,3 +131,19 @@ One bullet per item: what R does, what spidepy does, and why.
 - **Italic gene labels.** R plotmath (`italic("G1")`) becomes mathtext (`$\mathit{G1}$`) with each
   non-alphanumeric character set in `\text{}` (a bare `-` would render as a spaced minus sign), so
   names with `_ - " \ $ { } % # & ^` print as written.
+- **`plotPValues` row order follows `merge()`'s unstable tie order.** R's `merge(tab, bands, by =
+  c("gene", "index"))` sorts the matches of each key with an unstable shell sort (`isort_with_index`),
+  so the rows of one (gene, index) are not in table order. `_isort_with_index` reproduces that
+  sort, so `p$data` has R's row order; the histograms do not depend on it.
+- **Clustered heatmap rows.** `hclust(dist(m))$order` is reproduced from scipy's complete-linkage
+  merges (singleton before cluster, lower-numbered cluster first, leaves read left to right);
+  only exact distance ties could differ.
+- **Spillover labels.** R places them with `ggrepel` (`seed = 1`); matplotlib has no equivalent and
+  `ggrepel` is optional in R. Labels are right-aligned at `log2(fold) - 0.4`, pushed apart
+  vertically, with a segment to the point. Which markers are labelled (largest `|z|`) is R's.
+- **`marker` with a missing fold.** R's `marker` is `NA` where the fold is `NA`; here it is `False`
+  (the fold of a gene is only `NA` when the gene is missing from the object, which is an error).
+- **Principal-component signs.** `prcomp` and numpy's SVD may flip a component; only magnitudes
+  (and adjusted R^2, which is sign invariant) are compared with R.
+- **The call graph's edges.** `geom_curve(curvature = 0.22)` becomes a matplotlib `arc3` arrow;
+  the drawn curvature and arrow heads are approximate, the edge data are R's.
