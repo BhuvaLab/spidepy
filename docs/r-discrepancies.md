@@ -10,3 +10,9 @@ One bullet per item: what R does, what spidepy does, and why.
   style, such as `S1, S10, S2` or `Non-responder, Responder`, order identically. Code-point
   order is deterministic and independent of the user's locale, and it matches the reference
   fixtures; it is the documented choice rather than emulating glibc collation.
+- **Niche bandwidth lookup.** R finds niche reducedDims with the regex `^Niche[0-9.]+$`, which
+  misses a bandwidth that `paste0` writes in exponent form (`Niche1e+05`). `_io.niche_keys`
+  uses the same pattern, so such a niche is not found either. Matched to R because bandwidths
+  of 1e5 or more are not meaningful in spatial units; `niche_key` still writes the R string.
+- **Legacy-object guard.** R's `checkResults` also rejects pre-0.99.23 mixed-model objects
+  (`.assertCurrent`). Not ported: spidepy has no such objects.
