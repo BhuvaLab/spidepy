@@ -29,7 +29,9 @@ from scipy.spatial import cKDTree
 from scipy.special import ndtr
 
 _CUTOFF_SD = 8.0  # spatstat's default Gaussian cut-off, in units of sigma
-_BLOCK = 2000  # queries handled per block, bounding the number of stored pairs
+_BLOCK = 2000  # most queries handled per block
+_PAIR_BUDGET = 20_000_000  # target (query, point) pairs held per block, ~24 B each
+_PROBE = 64  # queries sampled to estimate the neighbours per query
 
 
 def _edge_weight(x, y, sigma, window) -> np.ndarray:
@@ -87,13 +89,27 @@ def density_at(
         rmax = _CUTOFF_SD * sigma
         tree = cKDTree(pts)
         norm = 1.0 / (2.0 * np.pi * sigma**2)
-        for s in range(0, len(q), _BLOCK):
-            qb = q[s : s + _BLOCK]
+        # block size from a pair budget: memory scales with the neighbours per query, which
+        # grows with sigma and the point density, so a fixed query count is not enough
+        probe = q[:: max(1, len(q) // _PROBE)]
+        est = max(1.0, float(np.mean(tree.query_ball_point(probe, rmax, return_length=True))))
+        block = int(min(_BLOCK, max(1, _PAIR_BUDGET // est)))
+
+        def run(lo: int, hi: int) -> None:
+            qb = q[lo:hi]
             pairs = tree.sparse_distance_matrix(cKDTree(qb), rmax, output_type="ndarray")
+            if len(pairs) > 2 * _PAIR_BUDGET and hi - lo > 1:  # estimate was low: split, retry
+                mid = (lo + hi) // 2
+                run(lo, mid)
+                run(mid, hi)
+                return
             k = norm * np.exp(-0.5 * (pairs["v"] / sigma) ** 2)
             if w is not None:
                 k = k * w[pairs["i"]]
-            res[s : s + len(qb)] = np.bincount(pairs["j"], weights=k, minlength=len(qb))
+            res[lo:hi] = np.bincount(pairs["j"], weights=k, minlength=hi - lo)
+
+        for s in range(0, len(q), block):
+            run(s, min(s + block, len(q)))
         if edge and not diggle:
             res = res / _edge_weight(q[:, 0], q[:, 1], sigma, win)
     out[inside] = res

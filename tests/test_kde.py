@@ -49,3 +49,15 @@ def test_blocked_evaluation_matches_single_block(monkeypatch):
     full = density_at(pts, pts, 4.0, win)
     monkeypatch.setattr("spidepy._kde._BLOCK", 37)
     np.testing.assert_allclose(density_at(pts, pts, 4.0, win), full, rtol=1e-14)
+
+
+@pytest.mark.parametrize("budget", [1, 50, 5000])
+def test_pair_budget_does_not_change_output(raw, monkeypatch, budget):
+    """Tiny budgets force one-query blocks and the split-and-retry path; same numbers."""
+    _, pts, qry = raw
+    for e, d in (("T", "T"), ("T", "F"), ("F", "F")):
+        want = density_at(pts, qry, 2.5, WIN, edge=e == "T", diggle=d == "T")
+        with monkeypatch.context() as m:
+            m.setattr("spidepy._kde._PAIR_BUDGET", budget)
+            got = density_at(pts, qry, 2.5, WIN, edge=e == "T", diggle=d == "T")
+        np.testing.assert_allclose(got, want, rtol=1e-12, atol=1e-15)
