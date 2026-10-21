@@ -80,11 +80,19 @@ def test_e_bayes_takes_a_numeric_trend(ref):
 
 
 def test_e_bayes_caps_df_total_at_pooled_df(ref):
-    c = ref("limma")["equal_df"]
-    fit = _fit(c)
+    # identical sigma -> infinite prior df: df.total is the pooled residual df, not Inf
+    c = ref("limma")["cap"]
+    fit = {k: c[k] for k in ("coefficients", "stdev_unscaled", "sigma", "df_residual")}
     eb = L.e_bayes(fit)
-    assert eb["df_total"].max() <= fit["df_residual"].sum()
-    assert np.allclose(eb["df_total"], fit["df_residual"] + eb["df_prior"])
+    assert np.isinf(eb["df_prior"])
+    assert (eb["df_total"] == c["df_residual"].sum()).all()
+    for key in ("t", "p_value", "df_total", "s2_post"):
+        _close(eb[key], c[key], f"cap:{key}", RTOL_ITER)
+    # a finite prior below the cap leaves df_total = df_residual + df_prior
+    eq = _fit(ref("limma")["equal_df"])
+    eb = L.e_bayes(eq)
+    assert np.allclose(eb["df_total"], eq["df_residual"] + eb["df_prior"])
+    assert eb["df_total"].max() <= eq["df_residual"].sum()
 
 
 FDIST = ["plain", "trend", "notallok", "notallok_flat", "unequal_df1", "small_trend",
@@ -131,7 +139,7 @@ def test_fit_f_dist_warns_on_zero_variances():
 
 
 SQZ = ["equal_flat", "equal_trend", "unequal_flat", "unequal_trend", "df0_flat", "df0_trend",
-       "df0_equal_trend"]  # fmt: skip
+       "df0_equal_trend", "unequal_trend_ties", "unequal_trend_ties_small"]  # fmt: skip
 
 
 @pytest.mark.parametrize("case", SQZ)
@@ -211,8 +219,45 @@ def test_lm_fit_weight_shapes_agree():
 def test_weighted_lowess_matches_limma(ref, case):
     c = ref("limma")["wl"][case]
     got = L._weighted_lowess(c["x"], c["y"], c["w"], c["span"], npts=200)
-    # relative to the scale of the fit: the fit crosses zero, where a pointwise rtol is meaningless
-    np.testing.assert_allclose(got, c["fitted"], rtol=1e-9, atol=1e-10 * np.abs(c["fitted"]).max())
+    _close(got, c["fitted"], case)
+
+
+WL2 = ["int_ties", "round_ties", "ties_delta", "spike_zero", "all_equal_x", "two_values", "n2",
+       "n5", "n9_span", "iter4", "iter3_ties", "zero_w"]  # fmt: skip
+
+
+@pytest.mark.parametrize("case", WL2)
+def test_weighted_lowess_ties_and_edge_cases(ref, case):
+    # heavily tied x (integer / rounded / spike of zeros), delta > 0 with ties, all-equal x,
+    # tiny n, zero weights and robustness iterations, from limma's own C routine
+    c = ref("limma")["wl2"][case]
+    got = L._weighted_lowess(
+        c["x"], c["y"], c["w"], c["span"], iterations=int(c["iterations"]), npts=int(c["npts"])
+    )
+    _close(got, c["fitted"], case)
+
+
+FDU = ["two_acc", "two_acc_df", "two_plain", "weighted_na", "ties_trend"]
+
+
+@pytest.mark.parametrize("case", FDU)
+def test_fit_f_dist_unequal_df1_matches_limma(ref, case):
+    # "two_acc*": exactly two informative genes plus NA / df ~ 0 genes. R then drops
+    # prior.weights but keeps its flag, so scale is NaN and df2 is Brent's value on a flat objective
+    c = ref("limma")["fdu"][case]
+    cov = ref("limma")["sqz"]["unequal_trend_ties"]["cov"][:100] if case == "ties_trend" else None
+    scale, df2 = L._fit_f_dist_unequal_df1(c["x"], c["df1"], covariate=cov)
+    if case.startswith("two_acc"):
+        assert np.isnan(c["scale"]) and np.isnan(scale)
+    _close(scale, c["scale"], f"{case}:scale", RTOL_ITER)
+    _close(df2, c["df2"], f"{case}:df2", RTOL_ITER)
+
+
+def test_fit_f_dist_unequal_df1_one_informative_gene(ref):
+    c = ref("limma")["fdu"]["one"]
+    scale, df2 = L._fit_f_dist_unequal_df1(c["x"], c["df1"])
+    assert np.isnan(scale) and np.isnan(df2)
+    assert np.isnan(c["scale"]) and np.isnan(c["df2"])
 
 
 def test_trigamma_inverse_matches_limma(ref):

@@ -137,4 +137,62 @@ tgi <- list(x = xs, y = vapply(xs, function(v) limma::trigammaInverse(v), 0))
 zs <- c(0.005, 0.1, 0.5, 1, 2.5, 4.9, 5, 7, 20, 100, 1e3, 1e5)
 lmd <- list(z = zs, y = statmod::logmdigamma(zs))
 
-write_ref(c(cases, list(fdist = fdist, sqz = sqz, wl = wl, tgi = tgi, lmd = lmd)), "limma")
+# weightedLowess on tied / degenerate x, with delta > 0, small n and robustness iterations
+wl2 <- list()
+add_wl <- function(name, x, y, w, span, iterations = 1L, npts = 200) {
+  f <- weightedLowess(x, y, weights = w, span = span, iterations = iterations, npts = npts)
+  wl2[[name]] <<- list(x = x, y = y, w = w, span = span, iterations = iterations, npts = npts,
+                       fitted = f$fitted)
+}
+n <- 600
+xi <- sample(0:12, n, TRUE)                      # integer covariate, ~50 ties per value
+add_wl("int_ties", xi, sin(xi) + rnorm(n, sd = .3), rexp(n) + .05, .3)
+x3 <- round(rnorm(n), 1)                         # rounded: many ties, some near-ties
+add_wl("round_ties", x3, x3^2 + rnorm(n), rexp(n) + .05, .4)
+add_wl("ties_delta", xi, sin(xi) + rnorm(n, sd = .3), rexp(n) + .05, .3, npts = 5)
+x4 <- sort(runif(900, 0, 1)); x4[sample(900, 300)] <- 0   # a spike of exact zeros (low counts)
+add_wl("spike_zero", x4, rnorm(900), rexp(900) + .05, .3)
+add_wl("all_equal_x", rep(2, 20), rnorm(20), rexp(20) + .05, .5)
+add_wl("two_values", rep(c(0, 1), each = 10), rnorm(20), rexp(20) + .05, .5)
+add_wl("n2", c(1, 3), c(2, 5), c(1, 2), 1)
+add_wl("n5", rnorm(5), rnorm(5), rexp(5) + .1, 1)
+add_wl("n9_span", rnorm(9), rnorm(9), rexp(9) + .1, .4)
+add_wl("iter4", rnorm(300), rnorm(300), rexp(300) + .1, .5, iterations = 4L)
+add_wl("iter3_ties", xi, sin(xi) + rt(n, 2), rexp(n) + .05, .3, iterations = 3L)
+add_wl("zero_w", rnorm(100), rnorm(100), c(rep(0, 30), rexp(70) + .1), .4)
+
+# squeezeVar, unequal df, trend on a covariate with ties (integer-valued, a zero spike)
+G <- 400
+cvt <- c(rep(0, 150), sample(1:8, 250, TRUE))
+vt <- rchisq(G, 5) / 5 * exp(0.1 * cvt)
+dft <- sample(2:7, G, TRUE)
+sqz$unequal_trend_ties <- c(sv(vt, dft, cvt), list(cov = cvt))
+sqz$unequal_trend_ties_small <- c(sv(vt[1:12], dft[1:12], cvt[1:12]), list(cov = cvt[1:12]))
+
+# fitFDistUnequalDF1 with exactly two informative genes and NA / tiny-df genes (R's
+# prior.weights <- NULL accident), and the plain two-informative case
+fu <- function(x, df1, cov = NULL) {
+  o <- suppressWarnings(limma:::fitFDistUnequalDF1(x, df1, covariate = cov))
+  list(x = x, df1 = df1, scale = o$scale, df2 = o$df2)
+}
+fdu <- list(
+  two_acc = fu(c(1.2, NA, 0.7, 0), c(3, 4, 5, 6)),
+  two_acc_df = fu(c(1.2, 2, 0.7, 0), c(3, 0, 5, 6)),
+  two_plain = fu(c(1.2, 0.7, 0), c(3, 5, 6)),
+  one = fu(c(1.2, 0), c(3, 5)),
+  weighted_na = fu(c(1.2, NA, 0.7, 2.2, 1.1), c(3, 4, 5, 6, 3)),
+  ties_trend = fu(vt[1:100], dft[1:100], cvt[1:100])
+)
+
+# eBayes with an infinite prior df: df.total must be capped at the pooled residual df
+Gc <- 50
+capfit <- list(coefficients = matrix(rnorm(Gc), Gc, 1), stdev.unscaled = matrix(1, Gc, 1),
+               sigma = rep(1, Gc), df.residual = rep(5, Gc))
+ce <- suppressWarnings(eBayes(capfit))
+cap <- list(coefficients = capfit$coefficients, stdev_unscaled = capfit$stdev.unscaled,
+            sigma = capfit$sigma, df_residual = capfit$df.residual,
+            t = ce$t, p_value = ce$p.value, df_total = ce$df.total, df_prior = ce$df.prior,
+            s2_post = ce$s2.post)
+
+write_ref(c(cases, list(wl2 = wl2, fdu = fdu, cap = cap,
+                          fdist = fdist, sqz = sqz, wl = wl, tgi = tgi, lmd = lmd)), "limma")

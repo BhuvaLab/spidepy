@@ -470,72 +470,138 @@ def fit_f_dist(x, df1, covariate=None):
 # ---------------------------------------------------------------------------------------------
 # weighted lowess and fitFDistUnequalDF1
 # ---------------------------------------------------------------------------------------------
-def _weighted_lowess(x, y, weights, span: float, npts: int = 200) -> np.ndarray:
-    """Single-pass weighted lowess (limma ``weightedLowess(..., iterations = 1)``).
+_WL_THRESHOLD = 1e-7  # THRESHOLD in weighted_lowess.c
 
-    The window of each fitted point is the smallest set of nearest points whose weights add up
-    to ``span`` times the total weight; the local weights are tricube in the distance over the
-    window radius times the prior weights, and the fit is a local line. Points are fitted only
-    every ``delta`` along ``x`` (``delta`` chosen from ``npts`` as limma does; ``npts >= n``
-    gives 0) and the others interpolated linearly, the next fitted point being the first one
-    beyond ``x[last] + delta``. Reproduced from limma's C routine by matching R's output (the
-    source is not shipped with the installed package); verified against R on continuous
-    ``x``. Behaviour on heavily tied ``x`` is not verified.
+
+def _wl_seeds(xs: np.ndarray, delta: float) -> np.ndarray:
+    """``find_seeds``: first and last point plus every point more than ``delta`` past the last."""
+    n = len(xs)
+    seeds = [0]
+    last = 0
+    for pt in range(1, n - 1):
+        if xs[pt] - xs[last] > delta:
+            seeds.append(pt)
+            last = pt
+    seeds.append(n - 1)
+    return np.array(seeds)
+
+
+def _wl_limits(xs, ws, pt: int, spanweight: float) -> tuple[int, int, float]:
+    """``find_limits`` for one seed: window ends and the largest distance in it.
+
+    The C code grows the window one point at a time, taking the left neighbour only when it is
+    strictly nearer than the right one, until the weights add up to ``spanweight``. That is the
+    other points taken in order of distance with the right side first on ties, so the window is
+    found with one sort and a cumulative sum (same order of additions), then extended over ties.
+    """
+    n = len(xs)
+    others = np.concatenate([np.arange(pt), np.arange(pt + 1, n)])
+    d = np.abs(xs[others] - xs[pt])
+    order = np.lexsort((others < pt, d))  # by distance, right (index > pt) before left
+    others, d = others[order], d[order]
+    cum = np.cumsum(np.concatenate([[ws[pt]], ws[others]]))
+    k = int(np.searchsorted(cum, spanweight, side="left"))  # points added once cum >= target
+    k = min(k, len(others))
+    taken = others[:k]
+    left = min(pt, int(taken.min())) if k else pt
+    right = max(pt, int(taken.max())) if k else pt
+    mdist = float(d[k - 1]) if k else 0.0
+    while left > 0 and xs[left] == xs[left - 1]:
+        left -= 1
+    while right < n - 1 and xs[right] == xs[right + 1]:
+        right += 1
+    return left, right, mdist
+
+
+def _wl_fit(xs, ys, ws, rw, pt: int, left: int, right: int, dist: float) -> float:
+    """``lowess_fit``: local linear fit at ``xs[pt]`` over ``[left, right]``."""
+    sl = slice(left, right + 1)
+    if dist < _WL_THRESHOLD:
+        work = ws[sl] * rw[sl]
+        return float((ys[sl] * work).sum() / work.sum())
+    work = (1 - (np.abs(xs[pt] - xs[sl]) / dist) ** 3) ** 3 * ws[sl] * rw[sl]
+    allw = work.sum()
+    xmean = (work * xs[sl]).sum() / allw
+    ymean = (work * ys[sl]).sum() / allw
+    var = ((xs[sl] - xmean) ** 2 * work).sum()
+    covar = ((xs[sl] - xmean) * (ys[sl] - ymean) * work).sum()
+    if var < _WL_THRESHOLD:
+        return float(ymean)
+    slope = covar / var
+    return float(slope * xs[pt] + (ymean - slope * xmean))
+
+
+def _weighted_lowess(x, y, weights, span: float, iterations: int = 1, npts: int = 200):
+    """limma ``weightedLowess`` (R wrapper and ``weighted_lowess.c``), fitted values only.
+
+    A line-by-line port. ``delta`` comes from ``npts`` as in the wrapper (0 when
+    ``npts >= n``); seeds are the points more than ``delta`` apart, fitted exactly, with the
+    points between interpolated linearly. Each window holds ``span`` times the total prior
+    weight. With ``iterations > 1`` robustness weights (bisquare on the weighted MAD) are
+    iterated as in the C code. Ties in ``x`` are handled as the C code does (windows extend
+    over ties; the interpolation slope falls back to the end-point average when the seeds
+    coincide).
     """
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
     w = np.asarray(weights, dtype=float)
     n = len(x)
+    if n < 2:
+        raise ValueError("need at least two points")
+    if iterations <= 0:
+        raise ValueError("number of robustness iterations should be positive")
     o = np.argsort(x, kind="stable")
-    xs, ysrt, ws = x[o], y[o], w[o]
+    xs, ys, ws = x[o], y[o], w[o]
     npts = int(npts + 0.5)
+    if npts < 1:
+        raise ValueError("number of points should be a positive integer")
     if npts >= n:
         delta = 0.0
     else:
         cum = np.cumsum(np.sort(np.diff(xs)))
         nc = np.arange(npts)
         delta = float(np.min(cum[len(cum) - 1 - nc] / (npts - nc)))
-    thr = span * ws.sum()
-    xrange = xs[-1] - xs[0]
-
-    def fit_at(i: int) -> float:
-        d = np.abs(xs - xs[i])
-        order = np.argsort(d, kind="stable")
-        j = min(int(np.searchsorted(np.cumsum(ws[order]), thr, side="left")), n - 1)
-        h = d[order[j]]
-        t = np.where(d < h, (1 - (d / h) ** 3) ** 3, 0.0) if h > 0 else (d == 0).astype(float)
-        wt = t * ws
-        a = wt.sum()
-        if not a > 0:
-            return float(ysrt[i])
-        wt = wt / a
-        if h > 0:
-            a = (wt * xs).sum()
-            c = (wt * (xs - a) ** 2).sum()
-            if np.sqrt(c) > 0.001 * xrange:
-                wt = wt * ((xs[i] - a) / c * (xs - a) + 1)
-        return float((wt * ysrt).sum())
-
-    fitted = np.empty(n)
-    last, i = -1, 0
-    while True:
-        fitted[i] = fit_at(i)
-        if last < i - 1:
-            al = (xs[last + 1 : i] - xs[last]) / (xs[i] - xs[last])
-            fitted[last + 1 : i] = al * fitted[i] + (1 - al) * fitted[last]
-        last = i
-        cut = xs[last] + delta
-        i = last + 1
-        while i < n and xs[i] <= cut:
-            if xs[i] == xs[last]:
-                fitted[i] = fitted[last]
-                last = i
-            i += 1
-        if last >= n - 1:
+    totalweight = ws.sum()
+    spanweight = totalweight * span
+    subrange = (xs[-1] - xs[0]) / n
+    seeds = _wl_seeds(xs, delta)
+    limits = [_wl_limits(xs, ws, int(pt), spanweight) for pt in seeds]
+    rob = np.ones(n)
+    fit = np.empty(n)
+    for _ in range(iterations):
+        fit[0] = _wl_fit(xs, ys, ws, rob, 0, *limits[0])
+        last = 0
+        for s in range(1, len(seeds)):
+            pt = int(seeds[s])
+            fit[pt] = _wl_fit(xs, ys, ws, rob, pt, *limits[s])
+            if pt - last > 1:
+                cur = xs[pt] - xs[last]
+                if cur > _WL_THRESHOLD * subrange:
+                    slope = (fit[pt] - fit[last]) / cur
+                    fit[last + 1 : pt] = slope * xs[last + 1 : pt] + (fit[pt] - slope * xs[pt])
+                else:
+                    fit[last + 1 : pt] = 0.5 * (fit[pt] + fit[last])
+            last = pt
+        rsd = np.abs(ys - fit)
+        resid_scale = rsd.sum() / n
+        ror = np.argsort(rsd, kind="stable")
+        rsd_sorted = rsd[ror]
+        cmad = 0.0
+        half = totalweight / 2
+        cur_w = 0.0
+        for j in range(n):
+            cur_w += ws[ror[j]]
+            if cur_w == half:  # the unlikely exact match
+                cmad = 3 * (rsd_sorted[j] + rsd_sorted[j + 1])
+                break
+            if cur_w > half:
+                cmad = 6 * rsd_sorted[j]
+                break
+        if cmad <= _WL_THRESHOLD * resid_scale:
             break
-        i = min(max(last + 1, i), n - 1)
+        rob[ror] = np.where(rsd_sorted < cmad, (1 - (rsd_sorted / cmad) ** 2) ** 2, 0.0)
     out = np.empty(n)
-    out[o] = fitted
+    out[o] = fit
     return out
 
 
@@ -570,7 +636,7 @@ def _loess_fit_trend(y, x, weights, span, min_weight, max_weight) -> np.ndarray:
             coef = np.linalg.lstsq(a, yobs * sw, rcond=None)[0]
             fitted[obs] = coef[0] + coef[1] * xobs
         return fitted
-    fitted[obs] = _weighted_lowess(xobs, yobs, wobs, span, npts=200)
+    fitted[obs] = _weighted_lowess(xobs, yobs, wobs, span, iterations=1, npts=200)
     return fitted
 
 
@@ -617,6 +683,10 @@ def _fit_f_dist_unequal_df1(x, df1, covariate=None, span=None, robust=False):
     n_inf = int(informative.sum())
     if n_inf < 2:
         return np.nan, np.nan
+    # R sets prior.weights to NULL here but keeps its PriorWeights flag: with NA / tiny-df genes
+    # present the weighted branch then runs on NULL weights, so emean is 0/0 and the objective is
+    # sum(NULL * ...) = 0 for every df2. Reproduced below (scale is NaN, df2 is Brent's start).
+    r_null_weights_accident = n_inf == 2 and prior_w is not None
     if n_inf == 2:
         covariate, prior_w = None, None
     m = float(np.median(x[informative]))
@@ -628,7 +698,9 @@ def _fit_f_dist_unequal_df1(x, df1, covariate=None, span=None, robust=False):
         w = np.full(n, w[0])
     if prior_w is not None:
         w = w * prior_w
-    if covariate is None:
+    if r_null_weights_accident:
+        emean = np.nan
+    elif covariate is None:
         emean = float((w * e).sum() / w.sum())
     else:
         if span is None:
@@ -640,6 +712,8 @@ def _fit_f_dist_unequal_df1(x, df1, covariate=None, span=None, robust=False):
     pw = np.ones(n) if prior_w is None else prior_w
 
     def minus_twice_loglik(par: float) -> float:
+        if r_null_weights_accident:
+            return 0.0
         d2 = par / (1 - par)
         d2s20 = d2 * np.exp(emean - _logmdigamma(d2))
         return -2 * float(
