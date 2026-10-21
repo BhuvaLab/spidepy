@@ -83,6 +83,16 @@ cfg <- list(
                       min.tiles = 3L)
 )
 
+# a dropped patient: S1 keeps 3 index-A cells (< min.cells), so the type is fitted without it
+cdrop <- spe
+ct <- as.character(cdrop$cell_type)
+a1 <- which(cdrop$sample_id == "S1" & ct == "A")
+ct[a1[-(1:3)]] <- "B"
+cdrop$cell_type <- ct
+cdrop <- buildNiches(cdrop, sigma = 30, verbose = FALSE)
+cfg$sand_dropped <- run(cdrop, engine = "sandwich", condition = "condition", index = "A",
+                        strata = "slide", min.patients = 3L)
+
 # the 650-cell fixture: two sections for S1 and S3, zero-count cells, spatial_spline depth
 s2 <- spiDE:::.toySPE(n_samples = 8, n_per = 650, n_genes = 4, seed = 11)
 s2 <- buildNiches(s2, sigma = 30, verbose = FALSE)

@@ -314,8 +314,8 @@ def fit_spide(
             coef = _sandwich_cr2(fit0, des0, Yk, offset=Ok, n_jobs=n_jobs, genes=gk)
             coef.insert(0, "test", "pooled")
             if trt_of is not None:
-                trt = trt_of[pat_codes]
-                stk = None if str_of is None else str_of[pat_codes]
+                trt = trt_of.reindex(pat_levels).to_numpy()[pat_codes]  # by patient name, as R
+                stk = None if str_of is None else str_of.reindex(pat_levels).to_numpy()[pat_codes]
                 des1 = _index_design(
                     L,
                     covk,
@@ -383,7 +383,7 @@ def _tile_codes(sec, xy, tile: float, ik) -> np.ndarray:
     return np.unique(np.column_stack([sc, fx, fy]), axis=0, return_inverse=True)[1].ravel()
 
 
-def _condition_coding(patients: pd.DataFrame, condition: str) -> np.ndarray:
+def _condition_coding(patients: pd.DataFrame, condition: str) -> pd.Series:
     """0/1 per patient for a two-level condition: 1 = the second level (``.conditionCoding``).
 
     Levels are the factor levels (a ``Categorical``), else the sorted values, so the contrast
@@ -399,14 +399,18 @@ def _condition_coding(patients: pd.DataFrame, condition: str) -> np.ndarray:
         lv = r_sort_str(set(chars[pd.notna(chars)]))
     if len(lv) != 2:
         raise ValueError(f"condition '{condition}' must have exactly two levels")
-    return (chars == lv[1]).astype(float)
+    return pd.Series(
+        (chars == lv[1]).astype(float), index=patients["patient"].astype(str).to_numpy()
+    )
 
 
-def _strata_by_patient(patients: pd.DataFrame, strata: str) -> np.ndarray:
+def _strata_by_patient(patients: pd.DataFrame, strata: str) -> pd.Series:
     """The strata label (R ``as.character``) of each patient, in patient order."""
     if strata not in patients.columns:
         raise ValueError(f"strata column '{strata}' is not a patient-level column")
-    return as_character_array(patients[strata])
+    return pd.Series(
+        as_character_array(patients[strata]), index=patients["patient"].astype(str).to_numpy()
+    )
 
 
 def _patient_levels(fit0: dict, des: dict, genes, L: pd.DataFrame, codes, ll) -> dict:

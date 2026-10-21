@@ -61,6 +61,21 @@ def big():
     return build_niches(a, sigma=30)
 
 
+def _drop_s1(a):
+    """toySpiDE with S1 left holding 3 index-A cells (below min_cells): S1 drops out of A."""
+    a = a.copy()
+    ct = a.obs["cell_type"].to_numpy().astype(object)
+    i = np.flatnonzero((a.obs["sample_id"].to_numpy() == "S1") & (ct == "A"))
+    ct[i[3:]] = "B"
+    a.obs["cell_type"] = ct
+    return build_niches(a, sigma=30)
+
+
+@pytest.fixture(scope="module")
+def dropped(toy):
+    return _drop_s1(toy)
+
+
 @pytest.fixture(scope="module")
 def R():
     return load_ref("fit")
@@ -100,6 +115,16 @@ CONFIGS = {
         "toy",
         dict(index="A", min_detect=0.5, min_cells=40, min_patients=8, tile=50, min_tiles=3),
     ),
+    "sand_dropped": (
+        "dropped",
+        dict(
+            engine="sandwich",
+            condition="condition",
+            index="A",
+            strata="slide",
+            min_patients=3,
+        ),
+    ),
     "big_slopes_spline": ("big", dict(index="A", depth="spatial_spline", section="section")),
     "big_sand_spline": (
         "big",
@@ -118,8 +143,8 @@ CONFIGS = {
 
 
 @pytest.fixture(scope="module")
-def fits(toy, big):
-    data = {"toy": toy, "big": big}
+def fits(toy, big, dropped):
+    data = {"toy": toy, "big": big, "dropped": dropped}
     return {
         k: fit_spide(data[ds], sigma=30, verbose=False, **kw) for k, (ds, kw) in CONFIGS.items()
     }
@@ -696,3 +721,21 @@ def test_strata_enter_the_condition_model_only_never_the_pooled_one():
     cw = with_st[with_st.test == "condition"]
     cn = without[without.test == "condition"]
     assert not np.allclose(cw["estimate"].to_numpy(), cn["estimate"].to_numpy())
+
+
+@pytest.mark.parametrize("col", ["condition", "slide"])
+def test_dropped_patient_label_never_reaches_other_cells(dropped, col):
+    """Cells take their own patient's condition / stratum even when a patient is dropped."""
+    kw = dict(engine="sandwich", condition="condition", index="A", strata="slide",
+              min_patients=3, sigma=30, verbose=False)  # fmt: skip
+    base = fit_spide(dropped, **kw)
+    assert "S1" not in base.index["A"]["patients"]
+    b = dropped.copy()
+    s1 = (b.obs["sample_id"] == "S1").to_numpy()
+    cur = b.obs[col].to_numpy().astype(object)
+    flip = {"Responder": "Non-responder", "Non-responder": "Responder",
+            "slide1": "slide2", "slide2": "slide1"}  # fmt: skip
+    cur[s1] = flip[cur[s1][0]]
+    b.obs[col] = cur
+    got = fit_spide(b, **kw)
+    pd.testing.assert_frame_equal(got.index["A"]["coef"], base.index["A"]["coef"])
