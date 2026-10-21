@@ -21,7 +21,7 @@ import scipy.sparse as sp
 from spanormpy._block_design import NBBlockDesign, nb_block_design
 from spanormpy._tps import _ns_eval, _ns_knots, tps_basis
 
-from ._io import _as_character, niche_keys
+from ._io import as_character_array, niche_keys
 from ._rcompat import r_num_str, r_sort_str, sanitise
 from .niches import _is_self_niche
 
@@ -32,9 +32,38 @@ def _is_missing(v) -> bool:
     return v is None or (not isinstance(v, str) and bool(pd.isna(v)))
 
 
+def _factor_codes(x) -> tuple[list[str], np.ndarray]:
+    """Levels and 0-based codes (-1 for missing) of R ``factor(x)``.
+
+    A ``Categorical`` keeps its category order (unused ones dropped); a numeric vector sorts
+    numerically (``factor(c(10, 9))`` has levels ``9, 10``) and is labelled as R prints it;
+    anything else sorts as strings (:func:`r_sort_str`). Vectorised: no per-element Python.
+    """
+    if isinstance(x, pd.Categorical):
+        codes = np.asarray(x.codes, dtype=int)
+        used = sorted(set(codes.tolist()) - {-1})
+        remap = np.full(len(x.categories) + 1, -1, dtype=int)
+        remap[used] = np.arange(len(used))
+        return [str(x.categories[i]) for i in used], np.where(codes < 0, -1, remap[codes])
+    arr = np.asarray(x)
+    if arr.dtype.kind in "iuf":
+        v = arr.astype(float)
+        ok = ~np.isnan(v)
+        uniq = np.unique(v[ok])
+        codes = np.full(len(v), -1, dtype=int)
+        codes[ok] = np.searchsorted(uniq, v[ok])
+        return [r_num_str(u) for u in uniq], codes
+    raw, uniq = pd.factorize(pd.Series(arr, dtype=object))
+    labs = [str(u) for u in uniq]
+    levels = r_sort_str(set(labs))
+    pos = {s: i for i, s in enumerate(levels)}
+    lut = np.array([pos[s] for s in labs] + [-1], dtype=int)
+    return levels, lut[raw]  # raw == -1 (missing) picks the trailing -1
+
+
 def _levels(x) -> list[str]:
-    """Sorted unique non-missing labels (levels of R ``factor(x)``)."""
-    return r_sort_str({str(v) for v in x if not _is_missing(v)})
+    """Levels of R ``factor(x)``: sorted unique non-missing labels (numbers sort numerically)."""
+    return _factor_codes(x)[0]
 
 
 # --------------------------------------------------------------------------------------
@@ -45,14 +74,15 @@ def _index_cells(ct, smp, k: str, min_cells: int) -> np.ndarray:
 
     ``ct`` may hold missing values (cells left out of the fit); cell order is kept.
     """
-    ct = np.asarray(ct, dtype=object)
-    smp = np.asarray(smp, dtype=object)
-    ik = np.array([i for i in range(len(ct)) if not _is_missing(ct[i]) and ct[i] == k], dtype=int)
+    ct = pd.Series(np.asarray(ct, dtype=object))
+    ik = np.flatnonzero((ct.notna() & (ct == k)).to_numpy())
     if ik.size == 0:
         return ik
-    labs, counts = np.unique(smp[ik].astype(str), return_counts=True)
-    keep = set(labs[counts >= min_cells])
-    return ik[np.array([str(s) in keep for s in smp[ik]], dtype=bool)]
+    s = pd.Series(np.asarray(smp, dtype=object)[ik]).astype(str)
+    # a missing patient is never kept (R: NA is not in names(table))
+    s[pd.isna(np.asarray(smp, dtype=object)[ik])] = None
+    n = s.map(s.value_counts())
+    return ik[(n >= min_cells).to_numpy()]
 
 
 def _niche_columns(NM: pd.DataFrame, k: str, ik, niche=None, group_map=None) -> dict:
@@ -149,16 +179,7 @@ def _index_design(
         parts.append(cov.to_numpy(dtype=float))
         names += [str(c) for c in cov.columns]
     if strata is not None:
-        if isinstance(strata, pd.Categorical):
-            st_codes = strata.codes.copy()
-            keep = sorted(set(st_codes.tolist()) - {-1})
-            st_levels = [str(strata.categories[i]) for i in keep]
-            st_codes = np.array([keep.index(c) if c >= 0 else -1 for c in st_codes])
-        else:
-            st_levels = _levels(strata)
-            st_codes = np.array(
-                [st_levels.index(str(v)) if not _is_missing(v) else -1 for v in strata]
-            )
+        st_levels, st_codes = _factor_codes(strata)
         if len(st_levels) > 1:
             # model.matrix(~ st)[, -1]: one 0/1 column per level but the first
             Sd = np.column_stack([(st_codes == i).astype(float) for i in range(1, len(st_levels))])
@@ -310,7 +331,7 @@ def _depth_blocks(ell, xy_all, sec_all, ik, patient_codes, patient_levels, L: pd
     for s in range(S):
         i = np.flatnonzero(pid == s)
         cols = []
-        for sg in dict.fromkeys(sec[i]):  # unique, in order of appearance
+        for sg in pd.unique(sec[i]):  # unique, in order of appearance
             j = np.flatnonzero(sec[i] == sg)
             lc = ell[i[j]] - ell[i[j]].mean()
             df = 3 if len(j) >= 200 else 2 if len(j) >= 100 else 0
@@ -349,15 +370,24 @@ def _depth_blocks(ell, xy_all, sec_all, ik, patient_codes, patient_levels, L: pd
 # --------------------------------------------------------------------------------------
 # helpers of fitSpiDE
 # --------------------------------------------------------------------------------------
+def _as_numeric(x: str) -> float:
+    """R ``suppressWarnings(as.numeric(x))`` of a digits-and-dots string: NaN when unparseable."""
+    try:
+        return float(x)
+    except ValueError:
+        return float("nan")
+
+
 def _pick_sigma(adata, sigma, name: str) -> float:
     """The niche bandwidth: the only one present, or the one asked for (``.pickSigma``)."""
     keys = niche_keys(adata, name)
-    have = [float(k[len(name) :]) for k in keys]
+    have = [_as_numeric(k[len(name) :]) for k in keys]
     if not have:
         raise ValueError("no niche reducedDims found; run buildNiches() first")
     if sigma is None:
         if len(have) > 1:
-            shown = ", ".join(r_num_str(h) for h in sorted(have))
+            # sort() drops the NA of an unparseable key such as "Niche1.2.3"
+            shown = ", ".join(r_num_str(h) for h in sorted(h for h in have if not np.isnan(h)))
             raise ValueError(
                 f"spe carries several niche bandwidths ({shown}): choose one with 'sigma'"
             )
@@ -427,6 +457,8 @@ def _index_offset(adata, offset: str, gk, ik) -> np.ndarray:
     """
     M = adata.layers[offset]
     gi = adata.var_names.get_indexer(list(gk))
+    if (gi < 0).any():  # R: assay(spe, offset)[gk, ik] on an unknown gene name
+        raise ValueError("subscript out of bounds")
     sub = M[np.asarray(ik, dtype=int)][:, gi]
     O = (sub.toarray() if sp.issparse(sub) else np.asarray(sub, dtype=float)).T
     if not np.all(np.isfinite(O)):
@@ -441,24 +473,27 @@ def _patient_table(cd: pd.DataFrame, smp) -> pd.DataFrame:
     distinct non-missing value (compared as R ``as.character``); the patient's value is its
     first cell's (so a missing first cell gives a missing value, as in R).
     """
-    smp = np.asarray(smp, dtype=object).astype(str)
-    pats = r_sort_str(set(smp))
-    first = np.array([int(np.flatnonzero(smp == p)[0]) for p in pats])
-    out = {
-        "patient": pats,
-        "ncells": np.array([int((smp == p).sum()) for p in pats], dtype=int),
-    }
+    raw, uniq = pd.factorize(
+        pd.Series(np.asarray(smp, dtype=object))
+        .astype(str)
+        .where(pd.notna(np.asarray(smp, dtype=object)))
+    )
+    pats = r_sort_str(uniq)
+    order = {p: i for i, p in enumerate(pats)}
+    lut = np.array([order[u] for u in uniq] + [-1], dtype=int)
+    pid = lut[raw]  # patient position of each cell, -1 for a missing sample id
+    ok = pid >= 0
+    ncells = np.bincount(pid[ok], minlength=len(pats)).astype(int)
+    first = np.full(len(pats), -1, dtype=int)
+    first[pid[ok][::-1]] = np.flatnonzero(ok)[::-1]  # first occurrence wins
+    out = {"patient": pats, "ncells": ncells}
     for cn in cd.columns:
         x = cd[cn]
-        chars = np.empty(len(x), dtype=object)
-        chars[:] = [_as_character(v) for v in x.astype(object)]
-        const = True
-        for p in pats:
-            v = chars[smp == p]
-            if len({s for s in v if not _is_missing(s)}) > 1:
-                const = False
-                break
-        if const:
+        ccodes, _ = pd.factorize(as_character_array(x))
+        # distinct non-missing values per patient (cells with a missing sample are ignored)
+        use = ok & (ccodes >= 0)
+        pairs = pd.DataFrame({"p": pid[use], "c": ccodes[use]}).drop_duplicates()
+        if not (pairs.groupby("p").size() > 1).any():
             if isinstance(x.dtype, pd.CategoricalDtype):
                 out[cn] = x.iloc[first].cat.remove_unused_categories().reset_index(drop=True)
             else:

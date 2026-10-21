@@ -70,3 +70,13 @@ One bullet per item: what R does, what spidepy does, and why.
   niche column on a patient's block; we use `numpy.linalg.lstsq`. They agree whenever the block
   has full column rank (it does for the sections whose df rule applies); a numerically
   rank-deficient block could drop different directions.
+- **Strata that vary within a patient.** R's `fitSpiDE` reads `as.character(patients[[strata]])`;
+  a strata column that is not constant within patients is absent from the patient table, so R
+  fails with the obscure "'names' attribute [n] must be the same length as the vector [0]".
+  `fit_spide` raises `ValueError("strata column '...' is not a patient-level column")` (same for
+  a condition, as R's `.conditionCoding`). Same inputs fail in both; only the message differs.
+- **Ordering of `patient_slopes` / `patient_intercepts` rows.** R sorts rows with `order()` on
+  character keys (locale collation); Python sorts in code-point order (see "Sorting of
+  character labels"). Identical for labels such as `G1, G10, G2`, `S1, S10, S2`.
+- **`SpiDEFit.condition`.** R stores `character(0)` when no condition was given; the Python
+  field is `None`.

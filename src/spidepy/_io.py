@@ -66,6 +66,20 @@ def _as_character(v) -> object:
     return str(v)
 
 
+def as_character_array(x) -> np.ndarray:
+    """A column as an object array of R ``as.character()`` strings, missing values ``NaN``.
+
+    Each distinct value is formatted once (``pd.factorize``), so a million-cell column costs a
+    hash pass, not a Python call per cell.
+    """
+    x = pd.Series(x) if not isinstance(x, pd.Series) else x
+    codes, uniq = pd.factorize(x)
+    lut = np.empty(len(uniq) + 1, dtype=object)
+    lut[:-1] = [_as_character(v) for v in uniq]
+    lut[-1] = np.nan  # code -1 (missing) picks the last entry
+    return lut[codes]
+
+
 def get_obs(adata: AnnData, column: str) -> np.ndarray:
     """An ``obs`` column as an object array of strings, missing values kept as ``NaN``.
 
@@ -74,10 +88,7 @@ def get_obs(adata: AnnData, column: str) -> np.ndarray:
     """
     if column not in adata.obs.columns:
         raise ValueError(f"column '{column}' not found in adata.obs")
-    col = adata.obs[column]
-    out = np.empty(len(col), dtype=object)
-    out[:] = [_as_character(v) for v in col.astype(object)]
-    return out
+    return as_character_array(adata.obs[column])
 
 
 def niche_key(name: str, sigma: float) -> str:

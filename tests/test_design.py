@@ -414,3 +414,66 @@ def test_partial_block_misc(R):
     # the residual is orthogonal (weighted) to the block
     r = _partial_block(X, w, Z[:, :2])
     np.testing.assert_allclose(Z[:, :2].T @ (r * w[:, None]), 0, atol=1e-12)
+
+
+# --------------------------------------------------------------------------------------
+# carry-overs from the Task 6 / 8 reviews (fixed in Task 9)
+# --------------------------------------------------------------------------------------
+def test_levels_sort_numbers_numerically_like_r_factor():
+    from spidepy._design import _factor_codes, _levels
+
+    # factor(c(10, 9, 10, NA)) has levels "9" "10"; strings sort as strings
+    assert _levels(np.array([10.0, 9.0, 10.0, np.nan])) == ["9", "10"]
+    lv, codes = _factor_codes(np.array([10, 9, 10]))
+    assert lv == ["9", "10"] and codes.tolist() == [1, 0, 1]
+    lv, codes = _factor_codes(np.array(["10", "9", None, "10"], dtype=object))
+    assert lv == ["10", "9"] and codes.tolist() == [0, 1, -1, 0]
+    cat = pd.Categorical(["b", "a", None, "b"], categories=["c", "b", "a"])
+    lv, codes = _factor_codes(cat)  # category order kept, unused "c" dropped
+    assert lv == ["b", "a"] and codes.tolist() == [0, 1, -1, 0]
+
+
+def test_numeric_strata_use_numeric_level_order():
+    L = pd.DataFrame({"B": np.linspace(0.1, 1, 6)})
+    codes = np.zeros(6, dtype=int)
+    des = _index_design(L, None, codes, ["p"], strata=np.array([10, 9, 10, 2, 9, 2]), tested=["B"])
+    # levels 2, 9, 10: treatment coding drops "2" and names the others in numeric order
+    assert [c for c in des["colnames"] if c.startswith("strata:")] == ["strata:9:B", "strata:10:B"]
+
+
+def test_pick_sigma_unparseable_key_is_na_like_r(adata):
+    a = adata
+    del a.obsm["Niche30"]
+    a.obsm["Niche1.2.3"] = np.zeros((a.n_obs, 1))  # matches ^Niche[0-9.]+$, as.numeric -> NA
+    assert np.isnan(_pick_sigma(a, None, "Niche"))
+    a.obsm["Niche5"] = np.zeros((a.n_obs, 1))
+    with pytest.raises(ValueError, match=r"\(5\): choose one with 'sigma'"):
+        _pick_sigma(a, None, "Niche")
+    assert _pick_sigma(a, 5, "Niche") == 5.0
+
+
+def test_index_offset_unknown_gene_is_out_of_bounds(adata):
+    ik = np.arange(5)
+    with pytest.raises(ValueError, match="subscript out of bounds"):
+        _index_offset(adata, "off", ["G1", "nope"], ik)
+
+
+def test_index_cells_and_patient_table_handle_missing_labels():
+    ct = np.array(["A", "A", np.nan, "A", "A", "B", "A"], dtype=object)
+    smp = np.array(["p", "p", "p", np.nan, "q", "q", "q"], dtype=object)
+    # R: table() drops the NA sample; q has 2 "A" cells (4, 6), p has 2 (0, 1)
+    np.testing.assert_array_equal(_index_cells(ct, smp, "A", 2), [0, 1, 4, 6])
+    np.testing.assert_array_equal(_index_cells(ct, smp, "A", 3), [])
+    cd = pd.DataFrame(
+        {
+            "g": pd.Categorical(["x", "x", "x", "y", "z", "z", "z"], categories=["z", "y", "x"]),
+            "num": [1.0, 1.0, 2.0, 5.0, 3.0, 3.0, np.nan],
+            "vary": [1, 2, 1, 1, 1, 1, 1],
+        }
+    )
+    pt = _patient_table(cd, smp)
+    assert pt["patient"].tolist() == ["p", "q"]
+    assert pt["ncells"].tolist() == [3, 3]
+    assert list(pt.columns) == ["patient", "ncells", "g"]  # num varies in p, vary in p
+    assert pt["g"].tolist() == ["x", "z"]
+    assert list(pt["g"].cat.categories) == ["z", "x"]
