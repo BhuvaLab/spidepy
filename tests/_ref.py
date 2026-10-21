@@ -71,8 +71,12 @@ def load_spe(topic: str) -> ad.AnnData:
     cells = np.atleast_1d(d["cell_names"]).astype(str)
     genes = np.atleast_1d(d["gene_names"]).astype(str)
     counts = np.asarray(d["counts"])
+    # R factors arrive as pd.Categorical (levels kept); atleast_1d would flatten them to arrays
     obs = pd.DataFrame(
-        {c: np.atleast_1d(d["obs"][c]) for c in np.atleast_1d(d["obs_columns"]).astype(str)},
+        {
+            c: v if isinstance(v := d["obs"][c], pd.Categorical) else np.atleast_1d(v)
+            for c in np.atleast_1d(d["obs_columns"]).astype(str)
+        },
         index=pd.Index(cells),
     )
     a = ad.AnnData(

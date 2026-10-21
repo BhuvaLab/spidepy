@@ -103,3 +103,12 @@ def test_bundled_dataset_equals_fixture(toy_spide):
     assert b.shape == toy_spide.shape
     np.testing.assert_array_equal(b.layers["counts"], toy_spide.layers["counts"])
     np.testing.assert_array_equal(b.obsm["spatial"], toy_spide.obsm["spatial"])
+
+
+def test_load_spe_keeps_factor_levels(spe):
+    a = spe("spe_factor")
+    g, arm = a.obs["grade"], a.obs["arm"]
+    assert isinstance(g.dtype, pd.CategoricalDtype)
+    assert list(g.cat.categories) == ["low", "mid", "high", "unused"]  # R order, unused kept
+    assert list(arm.cat.categories) == ["b", "a"]  # not alphabetical
+    assert list(g[:3]) == ["mid", "low", "high"]
