@@ -120,7 +120,7 @@ One bullet per item: what R does, what spidepy does, and why. Reference: spiDE 0
   up to 1e-2 in Python, and R's own value is one such draw. On the end-to-end slopes fixture
   (`toyspe_s16_n150_g12_seed7`, index A, niche B, 12 genes) the pooled se/t/df/p differ from R
   by up to 1e-5 / 1e-3 / 6e-4 although every input to the test is identical to 1e-14. Not fixable
-  (R's draw depends on its BLAS rounding); tests compare those rows at 5e-3.
+  (R's draw depends on its BLAS rounding); tests compare those rows at 2e-2 (0.53% was seen between numpy / BLAS builds).
 
 ## Toy data
 

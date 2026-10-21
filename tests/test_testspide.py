@@ -190,7 +190,7 @@ def test_show_matches_r(R, fit16):
 def _e2e(res, r, what, noisy_rows=None):
     """Table at 1e-6. ``noisy_rows`` (a mask over rows) holds the pooled rows whose robust prior is
     tie-noise sensitive (see ``NOISY`` in test_test_slopes.py): se, t, df and p of those rows
-    are compared at 5e-3 and the rest of the table, including their estimate, at 1e-6. Their
+    are compared at 2e-2 (0.53% seen across numpy / BLAS builds in CI) and the rest of the table, including their estimate, at 1e-6. Their
     noise reaches ``q`` of the pooled rows that rank at or above them in the BH step-up; only
     those q are relaxed. The rejected set (``in_family`` and ``q <= fdr``) must match R exactly."""
     got = res.table
@@ -204,7 +204,7 @@ def _e2e(res, r, what, noisy_rows=None):
         for c, rows in (("se", noisy_rows), ("t", noisy_rows), ("df", noisy_rows),
                         ("p", noisy_rows), ("q", affected)):  # fmt: skip
             np.testing.assert_allclose(
-                got.loc[rows, c], ref.loc[rows, c], rtol=5e-3, err_msg=what + c
+                got.loc[rows, c], ref.loc[rows, c], rtol=2e-2, err_msg=what + c
             )
             got.loc[rows, c] = ref.loc[rows, c].to_numpy()
     table_equal(got, r["table"], what, rtol=1e-6)

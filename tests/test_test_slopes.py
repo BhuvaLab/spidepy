@@ -43,8 +43,9 @@ def _compare(df, ref, what, rtol=1e-8, tight=("estimate", "n_patients")):
 # Tie noise in limma's robust prior (docs/r-discrepancies.md): the end-to-end slopes fixture has a
 # 12-gene niche column in which six genes sit at the same tail probability up to 1e-16, so the
 # prior df of those genes moves by up to ~1e-3 with the rounding of the weighted mean, in R and in
-# Python alike. Its moderated se / t / df / p cannot be compared tighter than that.
-NOISY = {("e2e_fit", "A", 0): 5e-3}
+# Python alike. Its moderated se / t / df / p cannot be compared tighter than that; across numpy /
+# BLAS builds the df moved by 0.53% (CI, Python 3.11), so the bound is 2e-2.
+NOISY = {("e2e_fit", "A", 0): 2e-2}
 
 
 CONFIGS = ["sl16", "toy_strata", "dropped_slopes", "big", "e2e_fit"]
