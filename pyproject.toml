@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "spidepy"
+dynamic = ["version"]
+description = "Context-specific, neighbourhood-dependent differential expression for spatial transcriptomics (Python port of spiDE)"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+authors = [
+    { name = "Dharmesh D. Bhuva", email = "d.bhuva@uq.edu.au" },
+    { name = "Chin Wee Tan", email = "cwtan@wehi.edu.au" },
+]
+keywords = ["spatial transcriptomics", "differential expression", "niche", "anndata", "spiDE"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pandas",
+    "anndata>=0.10",
+    "matplotlib>=3.8",
+    "spanormpy>=0.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/BhuvaLab/spidepy"
+Source = "https://github.com/BhuvaLab/spidepy"
+"R package" = "https://github.com/BhuvaLab/spiDE"
+
+[project.optional-dependencies]
+dev = ["pytest", "h5py", "ruff", "pre-commit"]
+
+[tool.hatch.version]
+path = "src/spidepy/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/spidepy"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["tests/ref/data", "tests/ref/Rlib", ".superpowers", "docs/superpowers"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# pinned so CI does not depend on the ruff version's default rule set
+select = ["E4", "E7", "E9", "F", "I"]
+# short names (O, I, lambdas) mirror the R/maths notation of the port
+ignore = ["E731", "E741"]
