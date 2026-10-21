@@ -107,3 +107,12 @@ One bullet per item: what R does, what spidepy does, and why.
   `SpiDEResults` with a `TypeError` (R dispatches and errors on the missing method).
 - **`spiGSEA` direction of a missing statistic.** R writes `NA_character_`; `spi_gsea` uses
   `None` in the `direction` column (object dtype).
+- **Toy-data simulators.** R's `.toySPE()`, `.toyNiche()` and `.toyClustered()` seed R's
+  Mersenne-Twister; `simulate_toy()`, `simulate_niche()` and `simulate_clustered()` use the same
+  generative model with `numpy.random.default_rng(seed)`, so a given `seed` gives a different
+  data set from R's (R's draws cannot be reproduced). The planted effect is the same but its
+  statistical power is draw-dependent (R's seed 7 is a favourable draw; here seed 4 is for the
+  same design). Neither touches the global RNG. They return AnnData (the layout `load_spe` builds
+  from R's SpatialExperiment) with plain-string `sample_id`, `condition` and `cell_type` and float
+  counts. `toy_spide()` is R's own `toySpiDE` object, not a simulation; its text columns are
+  returned as strings rather than the categories stored in the bundled file.
