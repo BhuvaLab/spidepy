@@ -459,8 +459,12 @@ def _index_offset(adata, offset: str, gk, ik) -> np.ndarray:
     gi = adata.var_names.get_indexer(list(gk))
     if (gi < 0).any():  # R: assay(spe, offset)[gk, ik] on an unknown gene name
         raise ValueError("subscript out of bounds")
-    sub = M[np.asarray(ik, dtype=int)][:, gi]
-    O = (sub.toarray() if sp.issparse(sub) else np.asarray(sub, dtype=float)).T
+    ik = np.asarray(ik, dtype=int)
+    if sp.issparse(M):  # columns first (CSC-friendly), then rows; never cells x all genes dense
+        sub = sp.csc_matrix(M)[:, gi][ik].toarray()
+    else:  # index cells and genes together
+        sub = np.asarray(M, dtype=float)[np.ix_(ik, gi)]
+    O = sub.T
     if not np.all(np.isfinite(O)):
         raise ValueError(f"offset assay '{offset}' has non-finite values")
     return O

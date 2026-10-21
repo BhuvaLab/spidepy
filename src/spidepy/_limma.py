@@ -664,6 +664,25 @@ def _choose_lowess_span(n: int, small_n: float = 50, min_span: float = 0.3, powe
     return min(min_span + (1 - min_span) * (small_n / n) ** power, 1.0)
 
 
+def _force_monotone(df2_shrunk: np.ndarray, o: np.ndarray) -> np.ndarray:
+    """Make ``df2_shrunk`` non-decreasing along the order ``o`` (the monotone block of limma).
+
+    Ports the ``which.min(cumsum(x)/seq_along(x))`` pooling of ``fitFDistUnequalDF1``: values up
+    to the minimum running mean are replaced by it, then a running maximum is taken. ``which.min``
+    skips NaN and fails (``1:integer(0)``) only when every running mean is NaN.
+    """
+    n = len(df2_shrunk)
+    ordered = df2_shrunk[o]
+    m = np.cumsum(ordered) / np.arange(1, n + 1)
+    if np.isnan(m).all():
+        raise ValueError("argument of length 0")
+    imin = int(np.nanargmin(m))
+    ordered[: imin + 1] = m[imin]
+    out = np.empty(n)
+    out[o] = np.maximum.accumulate(ordered)
+    return out
+
+
 def _fit_f_dist_unequal_df1(
     x, df1, covariate=None, span=None, robust=False, prior_weights=None
 ) -> dict:
@@ -809,13 +828,7 @@ def _fit_f_dist_unequal_df1(
     if np.isnan(df2_shrunk).any():  # R: 1:integer(0) fails when which.min finds nothing
         raise ValueError("argument of length 0")
     # df2_shrunk monotone in RightP
-    o = np.argsort(right_p, kind="stable")
-    ordered = df2_shrunk[o]
-    m = np.cumsum(ordered) / np.arange(1, n + 1)
-    imin = int(np.argmin(m))
-    ordered[: imin + 1] = m[imin]
-    df2_shrunk = np.empty(n)
-    df2_shrunk[o] = np.maximum.accumulate(ordered)
+    df2_shrunk = _force_monotone(df2_shrunk, np.argsort(right_p, kind="stable"))
     return {"scale": s20, "df2": df2, "df2_outlier": df2_outlier, "df2_shrunk": df2_shrunk}
 
 
@@ -1095,13 +1108,7 @@ def fit_f_dist_robustly(x, df1, covariate=None, winsor_tail_p=(0.05, 0.1)) -> di
             df2_outlier = math.log(0.5) / new_log * df2_outlier
             df2_shrunk = pno * df2 + pout * df2_outlier
         # force df2.shrunk monotone in TailP
-        o = np.argsort(log_tail_p, kind="stable")
-        ordered = df2_shrunk[o]
-        mm = np.cumsum(ordered) / np.arange(1, n + 1)
-        imin = int(np.argmin(mm))
-        ordered[: imin + 1] = mm[imin]
-        df2_shrunk = np.empty(n)
-        df2_shrunk[o] = np.maximum.accumulate(ordered)
+        df2_shrunk = _force_monotone(df2_shrunk, np.argsort(log_tail_p, kind="stable"))
     else:
         df2_outlier = df2
         df2_shrunk = np.full(n, df2)
