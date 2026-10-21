@@ -30,7 +30,7 @@ from scipy.special import ndtr
 
 _CUTOFF_SD = 8.0  # spatstat's default Gaussian cut-off, in units of sigma
 _BLOCK = 2000  # most queries handled per block
-_PAIR_BUDGET = 20_000_000  # target (query, point) pairs held per block, ~24 B each
+_PAIR_BUDGET = 5_000_000  # target (query, point) pairs held per block, ~24 B each
 _PROBE = 64  # queries sampled to estimate the neighbours per query
 
 
