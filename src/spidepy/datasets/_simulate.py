@@ -141,7 +141,9 @@ def simulate_toy(
 
     The generative model is R's, but the random draws are not: numpy's generator differs from
     R's Mersenne-Twister, so the same ``seed`` gives a different data set from R's. The
-    global numpy RNG is not touched.
+    global numpy RNG is not touched. Power to detect the planted effect at the default design
+    is low (about 15% of seeds reach q < 0.05, as in R); use more samples and cells for a
+    reliable detection.
 
     Parameters
     ----------
@@ -181,7 +183,6 @@ def simulate_toy(
     a_shift = {s: 0.0 for s in sids}
     if composition != 0:  # wide spread of B prevalence; A cells shifted toward/away from B region
         p_b = dict(zip(sids, rng.uniform(0.3, 0.9, n_samples)))
-    if composition != 0:
         a_shift = dict(zip(sids, rng.uniform(0.0, 0.85, n_samples)))
 
     cells = [_sample_cells(rng, n_per, field, p_b[s], a_shift[s], age=True) for s in sids]

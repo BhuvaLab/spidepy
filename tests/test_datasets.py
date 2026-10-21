@@ -152,12 +152,14 @@ def test_simulate_clustered_layout_and_patient_effect():
 
 
 def test_spide_recovers_the_planted_effect_on_simulated_data():
-    # Power depends on the draw (as in R, where seed 7 is a favourable one): seed 4 is the
-    # favourable draw of this generator for the same design as R's e2e test.
-    sp = simulate_toy(n_samples=16, n_per=150, n_genes=12, seed=4)
-    res = spidepy.spide(sp, "condition", 30, index="A", procedure="all", verbose=False)
-    cond = spidepy.results(res, test="condition")
-    top = cond[cond["gene"] == "G1"]
-    assert top["niche"].iloc[top["p"].argmin()] == "B"
-    assert top["q"].min() < 0.05
-    assert top.loc[top["niche"] == "B", "estimate"].iloc[0] > 0
+    # Detection of G1 / A / B is draw-dependent (about 15% of seeds at R's default design, as
+    # in R; about 65% here with 24 samples x 300 cells, since the B niche is collinear with the
+    # other niches). Require it in at least 3 of 8 seeds, so no single draw decides the test.
+    hits = 0
+    for seed in range(1, 9):
+        sp = simulate_toy(n_samples=24, n_per=300, n_genes=12, seed=seed)
+        res = spidepy.spide(sp, "condition", 30, index="A", procedure="all", verbose=False)
+        pool = spidepy.results(res, test="pooled")
+        g1 = pool[(pool["gene"] == "G1") & (pool["niche"] == "B")]
+        hits += int(g1["q"].iloc[0] < 0.05 and g1["estimate"].iloc[0] > 0)
+    assert hits >= 3
