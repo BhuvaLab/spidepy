@@ -30,6 +30,8 @@ dependencies = [
     "anndata>=0.10",
     "matplotlib>=3.8",
     "spanormpy>=0.1",
+    "joblib",
+    "threadpoolctl",
 ]
 
 [project.urls]

@@ -13,10 +13,9 @@ from __future__ import annotations
 import warnings
 
 import numpy as np
-from joblib import Parallel, delayed
 
 from ._design import _partial_block, _patient_blocks
-from ._glm import _row, _working_wr
+from ._glm import _bp_genes, _row, _working_wr
 
 
 def _median_cols(x: np.ndarray) -> np.ndarray:
@@ -140,10 +139,7 @@ def _patient_slopes(
         vt[miss] = (vv * np.maximum(rat, 1.0)[None, :])[miss]
         return bb, vv, vt
 
-    if n_jobs == 1:
-        res = [one_gene(g) for g in range(G)]
-    else:
-        res = Parallel(n_jobs=n_jobs, backend="threading")(delayed(one_gene)(g) for g in range(G))
+    res = [x for b in _bp_genes(G, lambda idx: [one_gene(int(g)) for g in idx], n_jobs) for x in b]
     beta_a = np.full((G, S, nt), np.nan)
     vt_a = np.full((G, S, nt), np.nan)
     vm_a = np.full((G, S, nt), np.nan)

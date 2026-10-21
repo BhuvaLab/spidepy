@@ -8,6 +8,8 @@ complement and the dispersion by profile maximum likelihood. Genes are independe
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 import numpy as np
 import scipy.sparse as sp
 from joblib import Parallel, delayed, effective_n_jobs
@@ -148,24 +150,45 @@ def _working_wr(y, W, alpha, psi, offset=0.0) -> dict:
 def _bp_genes(G: int, fun, n_jobs: int = 1) -> list:
     """Run ``fun`` over blocks of gene indices and return the block results in order (``.bpGenes``).
 
-    The ``G`` genes are cut into ``min(G, 4 * workers)`` contiguous blocks (one block when there is
-    a single worker or gene), so each worker gets a few blocks rather than one task per gene.
-    ``fun`` receives the 0-based indices of a block; with ``n_jobs > 1`` blocks run on threads,
-    each limited to one BLAS thread (R pins one per worker) when ``threadpoolctl`` is available.
+    The ``G`` genes are cut into ``min(G, 4 * workers)`` contiguous blocks with R's
+    ``cut(seq_len(G), nch)`` boundaries (equal-width bins, empty ones dropped), so each worker gets
+    a few blocks rather than one task per gene. ``fun`` receives the 0-based indices of a block.
+    With ``n_jobs > 1`` blocks run on threads, and BLAS is held to one thread for the whole run
+    (R pins one per worker; the limit is process-global, so it wraps the pool, not each block).
     The result never depends on ``n_jobs``.
     """
     nw = max(1, effective_n_jobs(n_jobs))
-    nch = min(G, nw * 4)
-    chunks = np.array_split(np.arange(G), max(nch, 1))
+    chunks = _cut_blocks(G, min(G, nw * 4))
+    if nw == 1:
+        return [fun(c) for c in chunks]
+    with _one_blas_thread():
+        return Parallel(n_jobs=nw, backend="threading")(delayed(fun)(c) for c in chunks)
 
-    def single(idx):
-        try:
-            from threadpoolctl import threadpool_limits
-        except ImportError:  # optional: only avoids BLAS oversubscription
-            return fun(idx)
-        with threadpool_limits(limits=1):
-            return fun(idx)
 
-    if nw > 1:
-        return Parallel(n_jobs=nw, backend="threading")(delayed(single)(c) for c in chunks)
-    return [fun(c) for c in chunks]
+def _cut_blocks(G: int, nch: int) -> list[np.ndarray]:
+    """0-based blocks of ``range(G)`` as ``split(seq_len(G), cut(seq_len(G), nch, labels = FALSE))``.
+
+    ``cut`` takes ``nch`` equal-width intervals over ``[1, G]`` (outer breaks widened by 0.1% of
+    the range, right-closed); a single block is built directly, as R does.
+    """
+    if nch <= 1 or G <= 1:
+        return [np.arange(G)]
+    x = np.arange(1, G + 1, dtype=float)
+    br = np.linspace(1.0, float(G), nch + 1)
+    dx = br[-1] - br[0]
+    br[0] -= dx / 1000
+    br[-1] += dx / 1000
+    code = np.searchsorted(br, x, side="left")  # bin i holds (br[i-1], br[i]]
+    return [np.flatnonzero(code == k) for k in np.unique(code)]
+
+
+@contextmanager
+def _one_blas_thread():
+    """Limit BLAS to one thread inside the block when ``threadpoolctl`` is available."""
+    try:
+        from threadpoolctl import threadpool_limits
+    except ImportError:
+        yield
+        return
+    with threadpool_limits(limits=1):
+        yield

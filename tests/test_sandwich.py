@@ -121,20 +121,26 @@ def test_solve_info_mimics_r_solve():
 
 
 def test_bp_genes_blocks_and_order():
-    seen = []
-
     def f(idx):
-        seen.append(idx.copy())
         return [int(i) for i in idx]
 
-    out = _bp_genes(10, f, n_jobs=1)
-    assert len(out) == 4 and [i for b in out for i in b] == list(range(10))  # min(G, 4 * 1) blocks
-    seen.clear()
+    out = _bp_genes(10, f, n_jobs=1)  # min(G, 4 * 1) blocks, R's cut() boundaries
+    assert [len(b) for b in out] == [3, 2, 2, 3]
+    assert [i for b in out for i in b] == list(range(10))
     out = _bp_genes(100, f, n_jobs=2)
     assert len(out) == 8  # a few blocks per worker, not a task per gene
     assert [i for b in out for i in b] == list(range(100))
     assert _bp_genes(1, f, n_jobs=4) == [[0]]  # a one-gene index type: a single block
-    assert len(_bp_genes(3, f, n_jobs=4)) == 3  # never more blocks than genes
+    assert [len(b) for b in _bp_genes(3, f, n_jobs=4)] == [1, 1, 1]  # never more blocks than genes
+    assert _bp_genes(0, f) == [[]]
+
+
+def test_bp_genes_leaves_blas_threads_alone():
+    from threadpoolctl import threadpool_info
+
+    before = [d["num_threads"] for d in threadpool_info()]
+    _bp_genes(40, lambda idx: list(idx), n_jobs=4)
+    assert [d["num_threads"] for d in threadpool_info()] == before
 
 
 @pytest.mark.parametrize("cfg", ["c1", "c3"])
