@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from ._checks import check_intercepts
+from ._checks import check_intercepts, check_results
 from ._classes import SpiDEFit, SpiDEResults
 
 
@@ -162,3 +162,9 @@ def patient_intercepts(obj, gene=None, index=None) -> pd.DataFrame:
         ["gene", "index", "patient"],
         ["index", "gene", "patient"],
     )
+
+
+def results(res: SpiDEResults, test: str | None = None, fdr: float | None = None) -> pd.DataFrame:
+    """Extract spiDE's test results (R ``results``); see :meth:`SpiDEResults.results`."""
+    check_results(res, "results()")
+    return res.results(test=test, fdr=fdr)

@@ -399,9 +399,11 @@ def _condition_coding(patients: pd.DataFrame, condition: str) -> pd.Series:
         lv = r_sort_str(set(chars[pd.notna(chars)]))
     if len(lv) != 2:
         raise ValueError(f"condition '{condition}' must have exactly two levels")
-    return pd.Series(
+    out = pd.Series(
         (chars == lv[1]).astype(float), index=patients["patient"].astype(str).to_numpy()
     )
+    out.attrs["levels"] = lv  # R attr(, "levels"): the contrast is second - first
+    return out
 
 
 def _strata_by_patient(patients: pd.DataFrame, strata: str) -> pd.Series:

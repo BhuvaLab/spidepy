@@ -80,3 +80,24 @@ One bullet per item: what R does, what spidepy does, and why.
   character labels"). Identical for labels such as `G1, G10, G2`, `S1, S10, S2`.
 - **`SpiDEFit.condition`.** R stores `character(0)` when no condition was given; the Python
   field is `None`.
+- **`.pooledColumnTest` robust-to-non-robust fallback.** R wraps `eBayes(robust = TRUE)` in
+  `tryCatch` and, on failure, retries with `robust = FALSE`. The helper `eb()` reads the free
+  variable `fit`, and `fit <- eb(TRUE)` has just overwritten it with `NULL`, so the retry runs
+  `eBayes(NULL)`, fails, and the whole column is NA. `_pooled_column_test` reproduces this: a
+  failed robust prior leaves every row of the column NA (no retry). Unit-tested with a failing
+  `e_bayes`; no reference fixture reaches it.
+- **Tie noise in limma's robust prior on small gene families.** With a handful of genes whose
+  residuals from the expression trend are exactly zero, their F statistics tie up to rounding
+  (1e-16) and `fitFDistRobustly` ranks, hence the shrunk prior df, depend on that noise: a
+  1e-15 relative perturbation of the residual variances moves `df.prior` of the tied genes by
+  up to 1e-2 in Python, and R's own value is one such draw. On the end-to-end slopes fixture
+  (`toyspe_s16_n150_g12_seed7`, index A, niche B, 12 genes) the pooled se/t/df/p differ from R
+  by up to 1e-5 / 1e-3 / 6e-4 although every input to the test is identical to 1e-14. Not fixable
+  (R's draw depends on its BLAS rounding); tests compare those rows at 5e-3.
+- **Result-table names.** R's column `p.heterogeneity` is `p_heterogeneity`; `SpiDEResults.pooled_df`
+  is `None` (R `character()`) for the sandwich engine, `condition` is `None` (R `character()`) when
+  no condition was tested, and `contrast` is `""` then.
+- **`spide` does not keep the niches it builds.** R's `spiDE()` returns the results and leaves the
+  caller's object untouched; `spide` builds the niche matrix in place (to avoid copying the counts)
+  and removes it from `adata.obsm` once the fit is done. A niche matrix already present is used
+  and kept.

@@ -1,8 +1,7 @@
 """The two result classes of the per-patient engines (``R/AllClasses.R``).
 
 ``SpiDEFit`` holds, per index cell type, what :func:`spidepy.fit_spide` estimated;
-``SpiDEResults`` holds the tidy table of the tests and the fit it came from (its methods
-arrive with the test functions). R's ``$`` slot accessor is plain attribute access here, and
+``SpiDEResults`` holds the tidy table of the tests and the fit it came from. R's ``$`` slot accessor is plain attribute access here, and
 R's legacy-object guard (``.assertCurrent``) has no counterpart: there are no legacy objects.
 
 Contents of ``SpiDEFit.index[k]`` (keys are R's list names):
@@ -23,6 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import numpy as np
 import pandas as pd
 
 from ._rcompat import r_num_str
@@ -79,22 +79,27 @@ class SpiDEFit:
 
 @dataclass
 class SpiDEResults:
-    """The results of spiDE's niche tests (fields only; the methods come with the tests).
+    """The results of spiDE's niche tests, returned by :func:`spidepy.test_spide` and
+    :func:`spidepy.spide`; read it with :meth:`results`.
 
     Attributes
     ----------
     table : pandas.DataFrame
-        One row per (gene, index, niche, test).
+        One row per (gene, index, niche, test): ``gene, index, niche, test, estimate, se, t,
+        df, p, n_patients, p_heterogeneity`` (R ``p.heterogeneity``; NA for the sandwich
+        engine), ``q`` and ``in_family``.
     condition : str or None
         The condition tested.
     contrast : str
-        E.g. ``"Responder - Non-responder"``.
+        E.g. ``"Responder - Non-responder"`` (second level minus first; ``""`` without a
+        condition).
     procedure : str
         The condition test's family.
     fdr : float
         The FDR level of the filter.
-    pooled_df : str
-        The slopes engine's pooled-test degrees of freedom rule (R slot ``pooled.df``).
+    pooled_df : str or None
+        The slopes engine's pooled-test degrees of freedom rule (R slot ``pooled.df``);
+        ``None`` for the sandwich engine (R: ``character()``).
     fit : SpiDEFit
         The fit that was tested.
     """
@@ -104,5 +109,46 @@ class SpiDEResults:
     contrast: str
     procedure: str
     fdr: float
-    pooled_df: str
+    pooled_df: str | None
     fit: SpiDEFit
+
+    def results(self, test: str | None = None, fdr: float | None = None) -> pd.DataFrame:
+        """The results table (R ``results``), ordered by p-value (missing last).
+
+        Parameters
+        ----------
+        test : {"condition", "pooled", "both"}, optional
+            Which test's rows (default: the condition test if the table has one, else pooled).
+        fdr : float, optional
+            Keep only the rows in a BH family with ``q <= fdr``.
+        """
+        tb = self.table
+        if test is None:
+            test = "condition" if (tb["test"] == "condition").any() else "pooled"
+        if test not in ("condition", "pooled", "both"):
+            raise ValueError("'test' should be one of 'condition', 'pooled', 'both'")
+        if test != "both":
+            tb = tb[tb["test"] == test]
+        if fdr is not None:
+            tb = tb[tb["q"].notna() & (tb["q"] <= fdr)]
+        # order(p, na.last = TRUE): stable, missing last
+        tb = tb.iloc[np.argsort(tb["p"].to_numpy(dtype=float), kind="stable")]
+        return tb.reset_index(drop=True)
+
+    def __repr__(self) -> str:
+        """R ``show``: one line per test, its size and the discoveries at the FDR."""
+        tb = self.table
+        lines = [f"SpiDEResults ({self.fit.engine} engine)"]
+        for tt in pd.unique(tb["test"]):
+            q = tb.loc[(tb["test"] == tt) & tb["q"].notna(), "q"]
+            if tt == "condition":
+                lab = f"condition-specific ({self.contrast}; {self.procedure} family)"
+            elif self.fit.engine == "slopes":
+                lab = f"pooled across patients ({self.pooled_df} df)"
+            else:
+                lab = "pooled across patients"
+            lines.append(
+                f"  {lab}: {len(q)} tests, {int((q <= self.fdr).sum())} at FDR "
+                f"{r_num_str(self.fdr)}"
+            )
+        return "\n".join(lines)

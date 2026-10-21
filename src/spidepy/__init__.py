@@ -3,9 +3,10 @@
 __version__ = "0.1.0.dev0"
 
 from ._classes import SpiDEFit, SpiDEResults  # noqa: E402
-from .accessors import patient_intercepts, patient_slopes  # noqa: E402
+from .accessors import patient_intercepts, patient_slopes, results  # noqa: E402
 from .fit import fit_spide  # noqa: E402
 from .niches import build_niches, merge_niches  # noqa: E402
+from .test import spide, test_spide  # noqa: E402
 
 __all__ = [
     "SpiDEFit",
@@ -15,4 +16,7 @@ __all__ = [
     "merge_niches",
     "patient_intercepts",
     "patient_slopes",
+    "results",
+    "spide",
+    "test_spide",
 ]
