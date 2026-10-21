@@ -119,6 +119,8 @@ g_none <- plotCallMap(res, test = "pooled", fdr = 1e-12, style = "graph")
 r3 <- res
 r3@table$niche[r3@table$niche == "B"] <- "Airway epithelium B"
 r3@table$index[r3@table$index == "B"] <- "Airway epithelium B"
+r3@table$niche[r3@table$niche == "C"] <- "Tumour-associated macrophages"
+r3@table$index[r3@table$index == "C"] <- "Tumour-associated macrophages"
 g_wrap <- plotCallMap(r3, test = "pooled", style = "graph")
 graph_out <- function(g) list(edges = dump_df(g$layers[[1]]$data), nodes = dump_df(g$layers[[2]]$data))
 calls <- list(
@@ -172,6 +174,12 @@ pvals <- list(data = dump_df(pv$data), band_levels = levels(pv$data$band), test_
               uni = dump_df(pv$layers[[2]]$data),
               data3 = dump_df(pv3$data), uni3 = dump_df(pv3$layers[[2]]$data))
 
+strw_in <- c("Tumour-associated macrophages", "T cell", "Supercalifragilisticexpialidocious cell",
+             "a  b   c d", "End. Next sentence here", "x-y-z-w-v-u-t-s", "  lead and trail  ", "A.B C", "One.  Two three", "(Quote.\" next one")
+strw <- lapply(c(8L, 10L, 12L), function(w) vapply(strw_in, function(x) paste(strwrap(x, w), collapse = "\n"), ""))
+names(strw) <- c("w8", "w10", "w12")
+strw$input <- strw_in
+
 # hclust's leaf order (the triplet heatmap's row order) on matrices of several sizes
 set.seed(11)
 hc <- lapply(c(3L, 4L, 7L, 12L, 25L), function(n) {
@@ -180,6 +188,6 @@ hc <- lapply(c(3L, 4L, 7L, 12L, 25L), function(n) {
 })
 names(hc) <- paste0("n", c(3, 4, 7, 12, 25))
 
-write_ref(list(hc = hc, res = dump_res(res), fs = dump_res(testSpiDE(fs)), r0 = dump_res(r0),
+write_ref(list(strw = lapply(strw, unname), hc = hc, res = dump_res(res), fs = dump_res(testSpiDE(fs)), r0 = dump_res(r0),
                slopes = slopes, effects = effects, calls = calls, top = top, spill = spill,
                heat = heat, pvals = pvals, fp = dump_fit(fp)), "plot_data")

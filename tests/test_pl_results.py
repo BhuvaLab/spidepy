@@ -113,7 +113,6 @@ def test_call_graph_without_edges_and_wrapped_labels(R, res):
     n, tested = Q._call_counts(r3, "pooled", 0.05)
     G = Q._call_graph(n, tested, _direction_labels(r3, "pooled"), 1)
     same_frame(G["nodes"], R["calls"]["g_wrap"]["nodes"], "wrap.nodes")
-    assert all(len(w) <= 12 for lab in G["nodes"]["label"] for w in lab.split("\n"))
     r = np.hypot(G["nodes"]["x"], G["nodes"]["y"])
     np.testing.assert_allclose(r, 1.0, rtol=1e-12)  # nodes on the unit circle, labels at 1.3
 
@@ -403,3 +402,26 @@ def test_end_to_end_on_the_toy_data(tmp_path):
     for k, f in figs.items():
         assert isinstance(f, Figure), k
         f.savefig(tmp_path / f"{k}.png", dpi=40)
+
+
+def test_strwrap_matches_r(R):
+    """R's strwrap: no break at a hyphen, long words kept whole, spaces collapsed, a sentence end
+    followed by two spaces keeps both."""
+    from spidepy.pl._theme import _strwrap
+
+    W = R["strw"]
+    for w in (8, 10, 12):
+        for text, want in zip(W["input"], W[f"w{w}"], strict=True):
+            assert _strwrap(str(text), w) == str(want), (w, text)
+
+
+def test_call_graph_wraps_hyphenated_types_like_r(R, res):
+    from spidepy.pl._helpers import _direction_labels
+
+    r3 = copy.copy(res)
+    r3.table = frame(R["calls"]["r3_table"])
+    r3.table["in_family"] = r3.table["in_family"].astype(bool)
+    n, tested = Q._call_counts(r3, "pooled", 0.05)
+    G = Q._call_graph(n, tested, _direction_labels(r3, "pooled"), 1)
+    same_frame(G["nodes"], R["calls"]["g_wrap"]["nodes"], "wrap.nodes")
+    assert "Tumour-associated\nmacrophages" in set(G["nodes"]["label"])

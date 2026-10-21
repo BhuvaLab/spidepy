@@ -57,6 +57,14 @@ def _strip_box(ax, text: str, side: str = "right") -> None:
 # --- plotCallMap -----------------------------------------------------------------------------
 
 
+def _sort_by(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
+    """Rows ordered by string columns with ``r_sort_str``'s collation (first column slowest)."""
+    keys = [
+        df[c].map({v: i for i, v in enumerate(r_sort_str(set(df[c])))}).to_numpy() for c in cols
+    ]
+    return df.iloc[np.lexsort(keys[::-1])].reset_index(drop=True)
+
+
 def _call_counts(res, test: str, fdr: float) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Counts of genes with ``q <= fdr`` per (index, niche, direction) and the tested pairs
     (the inputs of R ``plotCallMap``'s builders).
@@ -81,7 +89,8 @@ def _call_counts(res, test: str, fdr: float) -> tuple[pd.DataFrame, pd.DataFrame
                 "direction": np.where(hit["estimate"].to_numpy(dtype=float) > 0, "up", "down"),
             }
         )
-        n = d.groupby(["direction", "niche", "index"], sort=True).size().reset_index(name="calls")
+        n = d.groupby(["direction", "niche", "index"], sort=False).size().reset_index(name="calls")
+        n = _sort_by(n, ["direction", "niche", "index"])
         n = n[["index", "niche", "direction", "calls"]]
     else:
         n = pd.DataFrame(
@@ -104,7 +113,7 @@ def _call_heatmap(n: pd.DataFrame, tested: pd.DataFrame, lab: dict) -> pd.DataFr
     grid["tested"] = [(i, j) in pairs for i, j in zip(grid["index"], grid["niche"], strict=True)]
     # merge(grid, n, all.x = TRUE) sorts by the key columns
     grid = grid.merge(n, how="left", on=["index", "niche", "direction"])
-    grid = grid.sort_values(["index", "niche", "direction"], kind="stable").reset_index(drop=True)
+    grid = _sort_by(grid, ["index", "niche", "direction"])
     grid["calls"] = grid["calls"].astype(float)
     grid.loc[grid["calls"].isna() & grid["tested"], "calls"] = 0.0
     sign = np.where(grid["direction"] == "up", 1.0, -1.0)
@@ -677,7 +686,8 @@ def _triplet_heatmap_data(
         raise ValueError("no tested triplet has a p-value")
     tab["feature"] = tab[fcol].astype(str)
     if features is None:
-        best = tab.groupby("feature", sort=True)["p"].min()
+        best = tab.groupby("feature", sort=False)["p"].min()
+        best = best.reindex(r_sort_str(best.index))
         best = best.iloc[np.argsort(best.to_numpy(dtype=float), kind="stable")]
         features = list(best.index[:n])
     else:

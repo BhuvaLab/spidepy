@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import math
 import re
-import textwrap
 from collections.abc import Iterator
 from contextlib import contextmanager
 
@@ -434,9 +433,37 @@ def _blank_panel(ax) -> None:
 
 def _strwrap(text: str, width: int) -> str:
     """Lines of fewer than ``width`` characters joined by newlines (R ``strwrap`` pasted with
-    ``"\\n"``); a word longer than a line is kept whole."""
-    lines = textwrap.wrap(str(text), width=width - 1, break_long_words=False)
-    return "\n".join(lines) if lines else ""
+    ``"\\n"``).
+
+    As in R, words are split on whitespace only (never at a hyphen), a word longer than a line is
+    kept whole, runs of spaces collapse, and a sentence end (a word ending in ``.``, ``?`` or
+    ``!``, optionally followed by quotes or brackets) that the text follows with two spaces keeps
+    both.
+    """
+    tokens = re.split(r"[ \t\n]", str(text))
+    words: list[tuple[str, int]] = []  # (word, spaces after it)
+    for k, w in enumerate(tokens):
+        if not w:
+            # an empty token right after a sentence end is that sentence's second space
+            if words and k > 0 and tokens[k - 1] and re.search(r"[.?!][)\"']*$", tokens[k - 1]):
+                words[-1] = (words[-1][0], 2)
+            continue
+        words.append((w, 1))
+    lines: list[str] = []
+    cur, cur_len, gap = [], 0, 1
+    for w, sp in words:
+        if cur and cur_len + gap + len(w) > width - 1:
+            lines.append("".join(cur))
+            cur, cur_len = [], 0
+        if cur:
+            cur.append(" " * gap)
+            cur_len += gap
+        cur.append(w)
+        cur_len += len(w)
+        gap = sp
+    if cur:
+        lines.append("".join(cur))
+    return "\n".join(lines)
 
 
 def _stack_legends(fig, groups, x0: float, y_top: float = 0.9, gap: float = 0.03) -> None:
