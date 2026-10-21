@@ -2,6 +2,7 @@
 
 __version__ = "0.1.0.dev0"
 
+from . import pl  # noqa: E402
 from ._classes import SpiDEFit, SpiDEResults  # noqa: E402
 from .abundance import test_niche_abundance  # noqa: E402
 from .accessors import patient_intercepts, patient_slopes, results  # noqa: E402
@@ -17,6 +18,7 @@ __all__ = [
     "build_niches",
     "fit_spide",
     "merge_niches",
+    "pl",
     "patient_intercepts",
     "patient_slopes",
     "results",

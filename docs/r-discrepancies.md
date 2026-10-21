@@ -116,3 +116,18 @@ One bullet per item: what R does, what spidepy does, and why.
   from R's SpatialExperiment) with plain-string `sample_id`, `condition` and `cell_type` and float
   counts. `toy_spide()` is R's own `toySpiDE` object, not a simulation; its text columns are
   returned as strings rather than the categories stored in the bundled file.
+- **Plots return matplotlib figures, not ggplot objects.** `plot_niche_map` and
+  `plot_niche_response` return a `Figure`; R's `p$data` and layer data are available from the
+  private builders `_niche_map_data` and `_niche_response_data` (a dict: `data`, and `summary` and
+  `lines` or `centroids`), which keep R's column names, row order and plotmath `gene_lab` strings.
+  Panels are boxed titles (not full-width strips), legends are two stacked legends placed by hand,
+  and `scale_y_log10` labels use a comma for thousands via a formatter; pixel identity is not a goal.
+- **R's `message()` in `plotNicheResponse`.** "G2 not fitted in A, left out" is an unconditional
+  `message()` in R; `plot_niche_response` emits it as a `UserWarning` so callers can catch it.
+- **`.fmtq` pads `q = 1`.** `formatC(1, digits = 2, format = "g")` returns `"  1"` (padded to three
+  characters); `_fmt_q` reproduces it.
+- **Plotted counts are dense.** `_index_cell_data` returns the plotted genes' counts as a dense
+  genes x cells array (R keeps a sparse subset); only the requested genes are ever extracted.
+- **Italic gene labels.** R plotmath (`italic("G1")`) becomes mathtext (`$\mathit{G1}$`) with each
+  non-alphanumeric character set in `\text{}` (a bare `-` would render as a spaced minus sign), so
+  names with `_ - " \ $ { } % # & ^` print as written.
