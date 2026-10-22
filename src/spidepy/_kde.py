@@ -1,25 +1,25 @@
-"""Edge-corrected Gaussian kernel density, a port of ``spatstat.explore::densityfun``.
+"""Edge-corrected Gaussian kernel density, a port of `spatstat.explore::densityfun`.
 
-Reading of spatstat.explore 3.5-3 (``densityfun.ppp`` -> ``densitycrossEngine``) for the call
-made by spiDE (Gaussian kernel, scalar ``sigma``, rectangular window):
+Reading of spatstat.explore 3.5-3 (`densityfun.ppp` -> `densitycrossEngine`) for the call
+made by spiDE (Gaussian kernel, scalar `sigma`, rectangular window):
 
 * The edge correction is **exact**, not pixel based. For a rectangular window the engine takes
-  the closed-form Gaussian mass inside the window, ``edgeweight = (pnorm(xmax, x, sigma) -
-  pnorm(xmin, x, sigma)) * (pnorm(ymax, y, sigma) - pnorm(ymin, y, sigma))`` (the branch
-  ``isgauss && is.null(varcov) && win$type == "rectangle"``). ``second.moment.calc`` (the
+  the closed-form Gaussian mass inside the window, `edgeweight = (pnorm(xmax, x, sigma) -
+  pnorm(xmin, x, sigma)) * (pnorm(ymax, y, sigma) - pnorm(ymin, y, sigma))` (the branch
+  `isgauss && is.null(varcov) && win$type == "rectangle"`). `second.moment.calc` (the
   pixel/FFT route) is only used for non-rectangular windows or anisotropic kernels, so no grid,
-  ``dimyx``, ``eps`` or interpolation is involved.
-* ``edge = TRUE, diggle = TRUE``: each *data* point gets weight ``1 / edgeweight(data point)``
-  and the density is ``sum_i w_i K(q - x_i)``.
-* ``edge = TRUE, diggle = FALSE`` (uniform correction): the plain sum is divided by the
+  `dimyx`, `eps` or interpolation is involved.
+* `edge = TRUE, diggle = TRUE`: each *data* point gets weight `1 / edgeweight(data point)`
+  and the density is `sum_i w_i K(q - x_i)`.
+* `edge = TRUE, diggle = FALSE` (uniform correction): the plain sum is divided by the
   edge weight at each *query* point (the query must lie in the window).
-* ``edge = FALSE``: the plain sum ``sum_i K(q - x_i)``.
-* ``K`` is the isotropic Gaussian ``exp(-d^2 / (2 sigma^2)) / (2 pi sigma^2)`` and the C
-  routine drops data points further than ``8 * sigma`` from the query (``cutoff2Dkernel``
+* `edge = FALSE`: the plain sum `sum_i K(q - x_i)`.
+* `K` is the isotropic Gaussian `exp(-d^2 / (2 sigma^2)) / (2 pi sigma^2)` and the C
+  routine drops data points further than `8 * sigma` from the query (`cutoff2Dkernel`
   default for the Gaussian); the same cut-off is applied here so the two agree to rounding.
-* A query that coincides with a data point includes that point (``K(0)``), as in R.
-* ``densityfun`` returns only the queries that lie inside the window (``drop = TRUE``); here
-  they come back as ``nan`` so the output keeps the query order.
+* A query that coincides with a data point includes that point (`K(0)`), as in R.
+* `densityfun` returns only the queries that lie inside the window (`drop = TRUE`); here
+  they come back as `nan` so the output keeps the query order.
 """
 
 from __future__ import annotations
@@ -35,9 +35,9 @@ _PROBE = 64  # queries sampled to estimate the neighbours per query
 
 
 def _edge_weight(x, y, sigma, window) -> np.ndarray:
-    """Gaussian mass inside the rectangle for kernels centred at ``(x, y)``.
+    """Gaussian mass inside the rectangle for kernels centred at `(x, y)`.
 
-    The ``pnorm`` product of ``densitycrossEngine``.
+    The `pnorm` product of `densitycrossEngine`.
     """
     xmin, xmax, ymin, ymax = window
     xprob = ndtr((xmax - x) / sigma) - ndtr((xmin - x) / sigma)
@@ -53,9 +53,9 @@ def density_at(
     edge: bool = True,
     diggle: bool = True,
 ) -> np.ndarray:
-    """Edge-corrected Gaussian density of ``points_xy`` at ``query_xy``.
+    """Edge-corrected Gaussian density of `points_xy` at `query_xy`.
 
-    Reproduces ``spatstat.explore::densityfun(ppp, sigma, edge, diggle)(qx, qy)`` for a ppp on
+    Reproduces `spatstat.explore::densityfun(ppp, sigma, edge, diggle)(qx, qy)` for a ppp on
     a rectangular window (see the module docstring for the algorithm).
 
     Parameters
@@ -63,13 +63,13 @@ def density_at(
     points_xy : array-like, shape (n, 2)
         Data points.
     query_xy : array-like, shape (m, 2)
-        Locations to evaluate; those outside ``window`` give ``nan``.
+        Locations to evaluate; those outside `window` give `nan`.
     sigma : float
         Kernel standard deviation.
     window : tuple
-        ``(xmin, xmax, ymin, ymax)`` of the observation window.
+        `(xmin, xmax, ymin, ymax)` of the observation window.
     edge, diggle : bool
-        As in ``densityfun``.
+        As in `densityfun`.
 
     Returns
     -------

@@ -1,15 +1,15 @@
-"""The slopes engine's tests across patients (``R/test-slopes.R``).
+"""The slopes engine's tests across patients (`R/test-slopes.R`).
 
-For every (index, tested niche) the per-patient slopes ``beta_s`` of each gene are combined
-across patients, weighted by ``1 / (v_model_s * f_s + tau2_g)``: the pooled test (``~ 1``) and
-the condition test (``~ condition [+ strata]``). The pooled test is a moderated limma test
+For every (index, tested niche) the per-patient slopes `beta_s` of each gene are combined
+across patients, weighted by `1 / (v_model_s * f_s + tau2_g)`: the pooled test (`~ 1`) and
+the condition test (`~ condition [+ strata]`). The pooled test is a moderated limma test
 with an expression-trended, robust prior and the t statistic referred to limma's df scaled by
 the Kish effective share of the patients. The condition test is the same weighted least
-squares with an HC2 standard error across patients and Bell-McCaffrey df. ``tau2_g`` is the
+squares with an HC2 standard error across patients and Bell-McCaffrey df. `tau2_g` is the
 gene's DerSimonian-Laird between-patient variance of the slope; Cochran's Q behind it gives the
 label-free heterogeneity p that the default condition family filters on.
 
-Slope arrays are genes x patients x niches (R ``x$beta[, , j]``); a column of one niche is
+Slope arrays are genes x patients x niches (R `x$beta[, , j]`); a column of one niche is
 genes x patients.
 """
 
@@ -29,8 +29,8 @@ _EPS = np.finfo(float).eps
 
 
 def _usable(b: np.ndarray, v: np.ndarray):
-    """Weights ``1 / v``, the mask of usable (finite slope, finite positive weight) entries,
-    and the slopes / weights with the unusable ones set to 0 (the head of ``.dlTau2``)."""
+    """Weights `1 / v`, the mask of usable (finite slope, finite positive weight) entries,
+    and the slopes / weights with the unusable ones set to 0 (the head of `.dlTau2`)."""
     with np.errstate(divide="ignore", invalid="ignore"):
         w = 1.0 / v
     ok = np.isfinite(b) & np.isfinite(w) & (w > 0)
@@ -38,9 +38,9 @@ def _usable(b: np.ndarray, v: np.ndarray):
 
 
 def _dl_tau2(b: np.ndarray, v: np.ndarray) -> np.ndarray:
-    """Label-free DerSimonian-Laird between-patient variance per (gene, niche) (``.dlTau2``).
+    """Label-free DerSimonian-Laird between-patient variance per (gene, niche) (`.dlTau2`).
 
-    ``b`` and ``v`` are genes x patients x niches; the result is genes x niches.
+    `b` and `v` are genes x patients x niches; the result is genes x niches.
     """
     w, b, ok = _usable(b, v)
     with np.errstate(all="ignore"):
@@ -57,8 +57,8 @@ def _dl_tau2(b: np.ndarray, v: np.ndarray) -> np.ndarray:
 
 
 def _heterogeneity_p(b: np.ndarray, v: np.ndarray) -> np.ndarray:
-    """Cochran's Q of the patients' slopes, referred to chi-square on ``m - 1`` df
-    (``.heterogeneityP``); NA under two usable patients or for an overflowing Q."""
+    """Cochran's Q of the patients' slopes, referred to chi-square on `m - 1` df
+    (`.heterogeneityP`); NA under two usable patients or for an overflowing Q."""
     w, b, ok = _usable(b, v)
     with np.errstate(all="ignore"):
         sw = w.sum(axis=1)
@@ -72,7 +72,7 @@ def _heterogeneity_p(b: np.ndarray, v: np.ndarray) -> np.ndarray:
 
 def _kish_n(w: np.ndarray) -> np.ndarray:
     """The Kish effective number of patients behind each row of a weight matrix, NaN = no
-    usable patient: ``(sum w)^2 / sum w^2`` (``.kishN``)."""
+    usable patient: `(sum w)^2 / sum w^2` (`.kishN`)."""
     with np.errstate(all="ignore"):
         return np.nansum(w, axis=1) ** 2 / np.nansum(w**2, axis=1)
 
@@ -86,17 +86,17 @@ def _pooled_column_test(
     trend: bool = True,
 ) -> pd.DataFrame:
     """The pooled test of one (index, niche) column: moderated limma on an intercept
-    (``.pooledColumnTest``).
+    (`.pooledColumnTest`).
 
-    ``b`` and ``v`` are genes x patients slopes and variances, ``tau2`` the genes' between-patient
-    variance. The prior is robust and trended on ``log(mean_expr + 1e-3)`` over the column's
-    gene family (``trend=False``: a flat prior); the df are limma's ``df.total`` scaled by the
+    `b` and `v` are genes x patients slopes and variances, `tau2` the genes' between-patient
+    variance. The prior is robust and trended on `log(mean_expr + 1e-3)` over the column's
+    gene family (`trend=False`: a flat prior); the df are limma's `df.total` scaled by the
     Kish effective share of the patients.
 
-    R wraps ``eBayes`` in ``tryCatch(suppressWarnings(...))`` and retries with
-    ``robust = FALSE`` when the robust call fails; the retry reads the ``fit`` variable the
-    failed call has just overwritten with ``NULL`` and so always fails too (see
-    ``docs/r-discrepancies.md``): a column whose robust prior fails is entirely NA here, as in R.
+    R wraps `eBayes` in `tryCatch(suppressWarnings(...))` and retries with
+    `robust = FALSE` when the robust call fails; the retry reads the `fit` variable the
+    failed call has just overwritten with `NULL` and so always fails too (see
+    `docs/r-discrepancies.md`): a column whose robust prior fails is entirely NA here, as in R.
     """
     b = np.asarray(b, dtype=float)
     G = b.shape[0]
@@ -144,7 +144,7 @@ def _pooled_column_test(
 
 
 def _strata_dummies(strata, trt: np.ndarray) -> np.ndarray | None:
-    """Treatment-coded strata columns (``model.matrix(~ sf)[, -1]``), None for one level.
+    """Treatment-coded strata columns (`model.matrix(~ sf)[, -1]`), None for one level.
 
     Refuses a condition that lies in the strata's span, since pivoting would otherwise drop a
     strata column and test the condition unadjusted.
@@ -161,7 +161,7 @@ def _strata_dummies(strata, trt: np.ndarray) -> np.ndarray | None:
 
 
 def _solve_inv(m: np.ndarray):
-    """``solve(m)`` as R: None when LAPACK would call the matrix computationally singular."""
+    """`solve(m)` as R: None when LAPACK would call the matrix computationally singular."""
     try:
         inv = np.linalg.inv(m)
     except np.linalg.LinAlgError:
@@ -178,8 +178,8 @@ def _kish(w: np.ndarray) -> float:
 
 
 def _condition_gene(b, v, tau2, trt, x0, min_group):
-    """One gene's condition test: ``(estimate, se, df)`` or None (the body of ``one()`` in
-    ``.robustConditionTest``)."""
+    """One gene's condition test: `(estimate, se, df)` or None (the body of `one()` in
+    `.robustConditionTest`)."""
     if not np.isfinite(tau2):
         return None
     with np.errstate(all="ignore"):
@@ -223,14 +223,14 @@ def _robust_condition_test(
     min_group: int = 3,
     n_jobs: int = 1,
 ) -> pd.DataFrame:
-    """The condition test of one (index, niche) column (``.robustConditionTest``).
+    """The condition test of one (index, niche) column (`.robustConditionTest`).
 
-    Per gene, weighted least squares of the patients' slopes on ``[1, condition, strata]`` with
-    weights ``1 / (v + tau2)``, the condition coefficient's HC2 standard error across patients
-    and Bell-McCaffrey df under the working model ``var(b_s) ~ 1 / w_s``. A patient with an
-    unusable slope or weight drops out; a gene needs ``min_group`` Kish-effective patients in
+    Per gene, weighted least squares of the patients' slopes on `[1, condition, strata]` with
+    weights `1 / (v + tau2)`, the condition coefficient's HC2 standard error across patients
+    and Bell-McCaffrey df under the working model `var(b_s) ~ 1 / w_s`. A patient with an
+    unusable slope or weight drops out; a gene needs `min_group` Kish-effective patients in
     each condition. Every per-gene inversion is guarded and a gene that cannot be tested is NA.
-    Genes are blocked over ``n_jobs``.
+    Genes are blocked over `n_jobs`.
     """
     b = np.asarray(b, dtype=float)
     v = np.asarray(v, dtype=float)
@@ -270,7 +270,7 @@ def _robust_condition_test(
 
 
 def _slopes_tests(x: dict, trt=None, strata=None, n_jobs: int = 1) -> pd.DataFrame:
-    """The slopes engine's tests for one index type's stored slopes (``.slopesTests``).
+    """The slopes engine's tests for one index type's stored slopes (`.slopesTests`).
 
     Every row carries its triplet's label-free heterogeneity p. Rows are ordered by niche,
     pooled test then condition test.
@@ -301,12 +301,12 @@ def _slopes_tests(x: dict, trt=None, strata=None, n_jobs: int = 1) -> pd.DataFra
 
 
 def _bh_families(tab: pd.DataFrame, procedure: str, fdr: float) -> pd.DataFrame:
-    """Benjamini-Hochberg families (``.bhFamilies``), adding ``q`` and ``in_family``.
+    """Benjamini-Hochberg families (`.bhFamilies`), adding `q` and `in_family`.
 
     The pooled test: every (gene, index, niche). The condition test: the triplets that pass
-    the pooled test or the label-free heterogeneity test at ``fdr`` (``"pooled_or_heterogeneity"``),
-    whose heterogeneity passes BH over every triplet (``"heterogeneity"``), whose pooled test
-    passes (``"filtered"``), or every triplet (``"all"``). No filter looks at the condition.
+    the pooled test or the label-free heterogeneity test at `fdr` (`"pooled_or_heterogeneity"`),
+    whose heterogeneity passes BH over every triplet (`"heterogeneity"`), whose pooled test
+    passes (`"filtered"`), or every triplet (`"all"`). No filter looks at the condition.
     """
     tab = tab.copy()
     n = len(tab)

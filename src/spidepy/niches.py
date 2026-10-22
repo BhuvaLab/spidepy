@@ -1,8 +1,8 @@
 """Niche covariates: per-sample Gaussian cell-type densities and their merging.
 
-Ports ``R/buildNiches.R`` (``buildNiches``, ``.effectiveNiche``, ``.fillMissingDims``,
-``.speApply``), ``R/mergeNiches.R`` (``mergeNiches``, ``.resolveMembers``) and ``.isSelfNiche``
-of ``R/utils.R``. Niche matrices are stored as DataFrames in ``adata.obsm[name + sigma]``.
+Ports `R/buildNiches.R` (`buildNiches`, `.effectiveNiche`, `.fillMissingDims`,
+`.speApply`), `R/mergeNiches.R` (`mergeNiches`, `.resolveMembers`) and `.isSelfNiche`
+of `R/utils.R`. Niche matrices are stored as DataFrames in `adata.obsm[name + sigma]`.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from ._rcompat import r_sort_str, sanitise
 
 
 def _unique(xs) -> list:
-    """Distinct values in order of first appearance (R ``unique``)."""
+    """Distinct values in order of first appearance (R `unique`)."""
     return list(dict.fromkeys(xs))
 
 
@@ -38,10 +38,10 @@ def _is_missing(v) -> bool:
 
 
 def _effective_niche(xy: np.ndarray, cts: np.ndarray, sigma: float, edge: bool, diggle: bool):
-    """Density of every cell type at every cell of one sample (R ``.effectiveNiche``).
+    """Density of every cell type at every cell of one sample (R `.effectiveNiche`).
 
     Columns follow the first appearance of each cell type; values are scaled by
-    ``pi * sigma^2`` so they are on the scale of expected neighbour counts. The observation
+    `pi * sigma^2` so they are on the scale of expected neighbour counts. The observation
     window is the bounding box of the sample's coordinates.
     """
     window = (xy[:, 0].min(), xy[:, 0].max(), xy[:, 1].min(), xy[:, 1].max())
@@ -54,10 +54,10 @@ def _effective_niche(xy: np.ndarray, cts: np.ndarray, sigma: float, edge: bool, 
 
 
 def _sample_niches(xy, cts, sigmas, all_cell_types, edge, diggle) -> list[np.ndarray]:
-    """One sample's niche matrices, one per sigma, padded to ``all_cell_types`` with zeros.
+    """One sample's niche matrices, one per sigma, padded to `all_cell_types` with zeros.
 
-    The padding is R ``.fillMissingDims(m, all_cell_types, "column")`` followed by
-    ``m[is.na(m)] <- 0``.
+    The padding is R `.fillMissingDims(m, all_cell_types, "column")` followed by
+    `m[is.na(m)] <- 0`.
     """
     return [
         _effective_niche(xy, cts, sg, edge, diggle)
@@ -79,35 +79,35 @@ def build_niches(
     n_jobs: int = 1,
     copy: bool = False,
 ) -> AnnData:
-    """Build niche covariate matrices (R ``buildNiches``).
+    """Build niche covariate matrices (R `buildNiches`).
 
     For each sample and bandwidth, the Gaussian kernel density of every cell type is evaluated
-    at each cell's location (edge-corrected as in ``spatstat.explore::densityfun``) and scaled
-    by ``pi * sigma**2``. The cells x cell types matrix of each bandwidth is stored as the
-    DataFrame ``adata.obsm[name + sigma]`` with the same, sorted, set of cell-type columns for
+    at each cell's location (edge-corrected as in `spatstat.explore::densityfun`) and scaled
+    by `pi * sigma**2`. The cells x cell types matrix of each bandwidth is stored as the
+    DataFrame `adata.obsm[name + sigma]` with the same, sorted, set of cell-type columns for
     every sample (cell types absent from a sample are 0) and the original cell order.
 
     Parameters
     ----------
     adata : AnnData
-        Cells x genes with ``obsm["spatial"]``, a cell type and a sample id column.
+        Cells x genes with `obsm["spatial"]`, a cell type and a sample id column.
     sigma : float or sequence of float
         Kernel bandwidths in the units of the spatial coordinates.
     cell_type, sample_id : str
-        ``adata.obs`` columns holding cell type labels and sample identifiers.
+        `adata.obs` columns holding cell type labels and sample identifiers.
     edge, diggle : bool
-        Edge correction passed to the density (see :mod:`spidepy._kde`).
+        Edge correction passed to the density (see `spidepy._kde`).
     name : str
-        Prefix of the ``obsm`` keys.
+        Prefix of the `obsm` keys.
     n_jobs : int
         Number of joblib workers over samples; the result does not depend on it.
     copy : bool
-        Return a modified copy instead of modifying ``adata`` in place.
+        Return a modified copy instead of modifying `adata` in place.
 
     Returns
     -------
     AnnData
-        ``adata`` (or its copy) with one niche matrix per bandwidth.
+        `adata` (or its copy) with one niche matrix per bandwidth.
     """
     check_adata(adata, cell_type=cell_type, sample_id=sample_id)
     if copy:
@@ -146,10 +146,10 @@ def build_niches(
 
 
 def _resolve_members(members: Sequence[str], prior: dict | None) -> list[str]:
-    """Expand merged names back to their fine members (R ``.resolveMembers``).
+    """Expand merged names back to their fine members (R `.resolveMembers`).
 
-    A member that is a name in the ``prior`` mapping (a column from an earlier merge) is
-    replaced by that column's fine members. An empty prior entry is R's ``NULL`` and leaves
+    A member that is a name in the `prior` mapping (a column from an earlier merge) is
+    replaced by that column's fine members. An empty prior entry is R's `NULL` and leaves
     the member as it is.
     """
     if prior is None:
@@ -167,25 +167,25 @@ def merge_niches(
     name: str = "Niche",
     copy: bool = False,
 ) -> AnnData:
-    """Merge niche cell-type columns into groups by summing them (R ``mergeNiches``).
+    """Merge niche cell-type columns into groups by summing them (R `mergeNiches`).
 
-    Cell types not named in ``groups`` are kept as their own (singleton) niche. The group
+    Cell types not named in `groups` are kept as their own (singleton) niche. The group
     membership, composed through earlier merges so that it always resolves to the original fine
-    cell types, is recorded in ``adata.uns["spiDE_niche_groups"][key]`` for each niche matrix.
+    cell types, is recorded in `adata.uns["spiDE_niche_groups"][key]` for each niche matrix.
 
     Parameters
     ----------
     adata : AnnData
-        With niche matrices (see :func:`build_niches`).
+        With niche matrices (see `build_niches`).
     groups : dict
         Merged niche name -> cell-type columns to sum.
     sigma : float or sequence of float, optional
-        Bandwidths to update; ``None`` updates every ``obsm`` key starting with ``name``
-        (R greps ``^name``, so this also catches keys such as ``"NicheFoo"``).
+        Bandwidths to update; `None` updates every `obsm` key starting with `name`
+        (R greps `^name`, so this also catches keys such as `"NicheFoo"`).
     name : str
         Key prefix of the niche matrices.
     copy : bool
-        Return a modified copy instead of modifying ``adata`` in place.
+        Return a modified copy instead of modifying `adata` in place.
 
     Returns
     -------
@@ -234,7 +234,7 @@ def merge_niches(
 
 
 def _is_self_niche(index: str, niches, group_map: dict | None = None) -> np.ndarray:
-    """Which niche columns are the index type's own niche (R ``.isSelfNiche``).
+    """Which niche columns are the index type's own niche (R `.isSelfNiche`).
 
     Parameters
     ----------
@@ -244,13 +244,13 @@ def _is_self_niche(index: str, niches, group_map: dict | None = None) -> np.ndar
         Niche column names.
     group_map : dict, optional
         Merged niche column -> fine members (raw names). Names and members are sanitised here
-        before matching. A niche absent from it has the member set ``{itself}``; the niche's own
+        before matching. A niche absent from it has the member set `{itself}`; the niche's own
         name is always a member.
 
     Returns
     -------
     numpy.ndarray of bool
-        ``True`` where the niche column is the index type's own.
+        `True` where the niche column is the index type's own.
     """
     san_map: dict[str, list[str]] = {}
     for k, v in (group_map or {}).items():

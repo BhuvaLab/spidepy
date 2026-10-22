@@ -1,4 +1,4 @@
-"""Gene-set tests on the slopes engine's per-patient slopes (``R/spiGSEA.R``)."""
+"""Gene-set tests on the slopes engine's per-patient slopes (`R/spiGSEA.R`)."""
 
 from __future__ import annotations
 
@@ -34,9 +34,9 @@ _COLUMNS = [
 
 
 def _set_slopes(x: dict, member: list, type: str) -> dict:
-    """Each set's per-patient slope for one index type, for every niche column (``.setSlopes``).
+    """Each set's per-patient slope for one index type, for every niche column (`.setSlopes`).
 
-    A gene's slopes are put on a common scale by ``sigma_g = sqrt(tau2_g + median_s v_gs)``, its
+    A gene's slopes are put on a common scale by `sigma_g = sqrt(tau2_g + median_s v_gs)`, its
     typical spread of slopes between patients (DerSimonian-Laird tau2 plus a typical
     within-patient variance, both from the pooled weights and computed without the condition).
     A set's slope in a patient is the mean of its genes' scaled slopes there (genes missing in
@@ -47,17 +47,17 @@ def _set_slopes(x: dict, member: list, type: str) -> dict:
     Parameters
     ----------
     x : dict
-        One index type of a slopes fit (``genes``, ``beta``, ``v_model``, ``factor``,
-        ``mean_expr``; slope arrays genes x patients x niches).
+        One index type of a slopes fit (`genes`, `beta`, `v_model`, `factor`,
+        `mean_expr`; slope arrays genes x patients x niches).
     member : list of array-like of int
-        Each set's positions in ``x["genes"]``.
+        Each set's positions in `x["genes"]`.
     type : {"competitive", "self-contained"}
 
     Returns
     -------
     dict
-        ``b`` and ``v`` (sets x patients x niches) and ``mean_expr`` (per set, the geometric
-        mean of ``mean_expr + 1e-3`` over its genes).
+        `b` and `v` (sets x patients x niches) and `mean_expr` (per set, the geometric
+        mean of `mean_expr + 1e-3` over its genes).
     """
     beta = np.asarray(x["beta"], dtype=float)
     G, S, nt = beta.shape
@@ -112,7 +112,7 @@ def spi_gsea(
     max_size: int = 500,
     n_jobs: int = 1,
 ) -> pd.DataFrame:
-    """Gene-set tests on spiDE's niche results (R ``spiGSEA``).
+    """Gene-set tests on spiDE's niche results (R `spiGSEA`).
 
     Asks, for every gene set and every (index cell type, niche cell type) column, whether the
     set's genes as a group change with the niche (the pooled test) or change with it differently
@@ -122,9 +122,9 @@ def spi_gsea(
     patient, each gene's slope first divided by the gene's typical spread of slopes between
     patients. By default the set's slope is *competitive*: the same average over the column's
     other tested genes is subtracted, so the test asks whether the set moves more than the
-    typical gene. With ``type="self-contained"`` nothing is subtracted. The patients' set slopes
+    typical gene. With `type="self-contained"` nothing is subtracted. The patients' set slopes
     then go through the same pooled and condition tests as the genes' slopes
-    (:func:`~spidepy.test_spide`); the patient is the unit of replication, so the correlation
+    (`test_spide`); the patient is the unit of replication, so the correlation
     between a set's genes is accounted for without being estimated.
 
     Needs the slopes engine, whose fit holds each patient's slopes.
@@ -136,7 +136,7 @@ def spi_gsea(
     genesets : dict of str to list of str
         Gene sets by name.
     test : {"pooled", "condition"} or list of them, optional
-        The tests to run; default every test ``res`` holds.
+        The tests to run; default every test `res` holds.
     type : {"competitive", "self-contained"}
     min_size, max_size : int
         Set size limits after intersecting with the genes tested in each index type.
@@ -146,9 +146,9 @@ def spi_gsea(
     Returns
     -------
     pandas.DataFrame
-        One row per (set, index, niche, test): ``set, index, niche, test, size, estimate, se, t,
-        df, p, q`` (Benjamini-Hochberg within the (index, niche, test) column), ``q.global``
-        (over every row of that test), ``n_patients`` and ``direction``. The estimate is in units
+        One row per (set, index, niche, test): `set, index, niche, test, size, estimate, se, t,
+        df, p, q` (Benjamini-Hochberg within the (index, niche, test) column), `q.global`
+        (over every row of that test), `n_patients` and `direction`. The estimate is in units
         of the genes' between-patient spread. Empty when no set is usable.
     """
     if not isinstance(res, SpiDEResults):

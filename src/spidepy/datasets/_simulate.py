@@ -1,11 +1,11 @@
-"""Toy-data simulators: numpy ports of spiDE's ``.toySPE()``, ``.toyNiche()``, ``.toyClustered()``.
+"""Toy-data simulators: numpy ports of spiDE's `.toySPE()`, `.toyNiche()`, `.toyClustered()`.
 
 All three share one negative-binomial count model adapted from splatter (Zappia, Phipson &
 Oshlack, Genome Biology 2017). The generative model matches R, but the random draws do not:
-R's Mersenne-Twister stream cannot be reproduced from ``numpy.random.default_rng``, so a given
-``seed`` gives a different (equally valid) data set from R's. Every function takes its own
-``numpy.random.Generator`` built from ``seed``; the global numpy RNG is never read or reseeded
-(R's ``.localSeed`` guarantee).
+R's Mersenne-Twister stream cannot be reproduced from `numpy.random.default_rng`, so a given
+`seed` gives a different (equally valid) data set from R's. Every function takes its own
+`numpy.random.Generator` built from `seed`; the global numpy RNG is never read or reseeded
+(R's `.localSeed` guarantee).
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ def _sim_gene_params(
     boost=(),
     boost_gmean=6.0,
 ):
-    """Per-gene mean, BCV and NB size (ports R ``.simGeneParams()``, ``total.count``/``gmean`` unused)."""
+    """Per-gene mean, BCV and NB size (ports R `.simGeneParams()`, `total.count`/`gmean` unused)."""
     ng = len(gene_names)
     gmean = np.maximum(rng.gamma(shape=mean_shape, scale=1.0 / mean_rate, size=ng), 1e-3)
     is_out = rng.uniform(size=ng) < out_prob
@@ -43,7 +43,7 @@ def _sim_gene_params(
 
 
 def _sim_counts(rng, gmean, size, cell_type, log_effect=None, lib_size=None, sd_ct=0.5):
-    """Genes x cells NB counts (ports R ``.simCounts()``): mu = lib * gmean * exp(delta_ct + effect)."""
+    """Genes x cells NB counts (ports R `.simCounts()`): mu = lib * gmean * exp(delta_ct + effect)."""
     ng = len(gmean)
     cts = sorted(set(cell_type))
     delta = rng.normal(0.0, sd_ct, size=(ng, len(cts)))  # per-(gene, cell type) log-fold offsets
@@ -59,7 +59,7 @@ def _sim_counts(rng, gmean, size, cell_type, log_effect=None, lib_size=None, sd_
 
 
 def _sim_lib_size(rng, sample_id, cell_type, sd_sample=0.15, sd_celltype=0.35):
-    """Per-cell library size from a sample and a cell-type log-scale term (ports ``.simLibSize()``)."""
+    """Per-cell library size from a sample and a cell-type log-scale term (ports `.simLibSize()`)."""
     smp, ct = np.asarray(sample_id), np.asarray(cell_type)
     su, cu = sorted(set(smp)), sorted(set(ct))
     s_lib = rng.normal(0.0, sd_sample, size=len(su))
@@ -68,10 +68,10 @@ def _sim_lib_size(rng, sample_id, cell_type, sd_sample=0.15, sd_celltype=0.35):
 
 
 def _sample_cells(rng, n_per, field, p_b, a_shift, age):
-    """One sample's coordinates, cell types and optional Age draw (the R per-sample ``lapply``).
+    """One sample's coordinates, cell types and optional Age draw (the R per-sample `lapply`).
 
     B cells concentrate in the right 40% of the field. Draw order follows R: x, y, B/non-B
-    uniforms, the A/C choice, the A-cell shift (only when ``a_shift > 0``), then Age.
+    uniforms, the A/C choice, the A-cell shift (only when `a_shift > 0`), then Age.
     """
     x = rng.uniform(0, field, n_per)
     y = rng.uniform(0, field, n_per)
@@ -86,7 +86,7 @@ def _sample_cells(rng, n_per, field, p_b, a_shift, age):
 
 
 def _assemble(counts, cd, gene_names) -> AnnData:
-    """AnnData in the layout ``load_spe`` builds from R's SpatialExperiment fixtures."""
+    """AnnData in the layout `load_spe` builds from R's SpatialExperiment fixtures."""
     cd = cd.copy()
     cd["nCount"] = counts.sum(axis=0)
     adata = AnnData(
@@ -134,13 +134,13 @@ def simulate_toy(
 ) -> AnnData:
     """Small synthetic spatial data set with a planted neighbourhood-dependent effect.
 
-    Port of spiDE's internal ``.toySPE()``. In the index cell type "A", gene ``G1`` is
+    Port of spiDE's internal `.toySPE()`. In the index cell type "A", gene `G1` is
     up-regulated in the "Responder" condition in proportion to the local density of the niche
     cell type "B" (B cells sit at high x, so B-niche density rises with x). The negative
     binomial count model follows splatter's Splat model.
 
     The generative model is R's, but the random draws are not: numpy's generator differs from
-    R's Mersenne-Twister, so the same ``seed`` gives a different data set from R's. The
+    R's Mersenne-Twister, so the same `seed` gives a different data set from R's. The
     global numpy RNG is not touched. Power to detect the planted effect at the default design
     is low (about 15% of seeds reach q < 0.05, as in R); use more samples and cells for a
     reliable detection.
@@ -148,31 +148,31 @@ def simulate_toy(
     Parameters
     ----------
     n_samples : int
-        Number of samples (alternately Responder, Non-responder; ids ``S1``, ``S2``, ...).
+        Number of samples (alternately Responder, Non-responder; ids `S1`, `S2`, ...).
     n_per : int
         Cells per sample.
     n_genes : int
-        Number of genes (``G1``, ``G2``, ...).
+        Number of genes (`G1`, `G2`, ...).
     field : float
         Side length of the square spatial field.
     sd_lib_sample, sd_lib_celltype : float
         Log-scale SDs of the sample-level and cell-type-level library-size terms.
     beta : float
-        Maximum log-fold change of the planted G1 effect, planted as ``beta * x / field``.
-        The response is non-monotonic in ``beta``; the default is the peak.
+        Maximum log-fold change of the planted G1 effect, planted as `beta * x / field`.
+        The response is non-monotonic in `beta`; the default is the peak.
     composition : float
         Size of a planted between-sample composition confound on G2 in index type A
-        (constant within sample, so the true within-sample niche slope is zero). ``0`` plants
+        (constant within sample, so the true within-sample niche slope is zero). `0` plants
         none and draws no extra random numbers.
     seed : int
-        Seed of the ``numpy.random.default_rng`` used for every draw.
+        Seed of the `numpy.random.default_rng` used for every draw.
 
     Returns
     -------
     anndata.AnnData
-        Cells x genes counts in ``X`` and ``layers["counts"]``, ``obs`` columns ``sample_id``,
-        ``condition``, ``x``, ``y``, ``cell_type``, ``Age``, ``cell_id``, ``Area``, ``nCount``
-        and ``obsm["spatial"]``.
+        Cells x genes counts in `X` and `layers["counts"]`, `obs` columns `sample_id`,
+        `condition`, `x`, `y`, `cell_type`, `Age`, `cell_id`, `Area`, `nCount`
+        and `obsm["spatial"]`.
     """
     rng = np.random.default_rng(seed)
     gene_names = [f"G{i}" for i in range(1, n_genes + 1)]
@@ -217,23 +217,23 @@ def simulate_niche(
 ) -> AnnData:
     """Synthetic spatial data set with a condition-free neighbourhood effect.
 
-    Port of spiDE's internal ``.toyNiche()`` (dropped from R in c8db60a; kept here). Like :func:`simulate_toy`, but gene ``G1`` in
+    Port of spiDE's internal `.toyNiche()` (dropped from R in c8db60a; kept here). Like `simulate_toy`, but gene `G1` in
     index cell type "A" rises with the local density of niche cell type "B" in every cell, and
-    there is no ``condition`` column, so it can only be analysed in the condition-free mode.
+    there is no `condition` column, so it can only be analysed in the condition-free mode.
     The generative model is R's; the random draws are not (numpy vs Mersenne-Twister), and the
     global numpy RNG is not touched.
 
     Parameters
     ----------
     n_samples, n_per, n_genes, field, sd_lib_sample, sd_lib_celltype, seed
-        As in :func:`simulate_toy`.
+        As in `simulate_toy`.
     beta : float
         Effect size of the planted B-niche association on G1 in A cells.
 
     Returns
     -------
     anndata.AnnData
-        As :func:`simulate_toy` but ``obs`` has no ``condition`` column.
+        As `simulate_toy` but `obs` has no `condition` column.
     """
     rng = np.random.default_rng(seed)
     gene_names = [f"G{i}" for i in range(1, n_genes + 1)]
@@ -264,16 +264,16 @@ def simulate_clustered(
 ) -> AnnData:
     """Synthetic null with patient-level clustering.
 
-    Port of spiDE's internal ``.toyClustered()`` (dropped from R in c8db60a; kept here). A per-(gene, sample) intercept is shared by
+    Port of spiDE's internal `.toyClustered()` (dropped from R in c8db60a; kept here). A per-(gene, sample) intercept is shared by
     every cell of a sample and there is no niche or condition effect; condition is a
     sample-level label, so a cell-level test is anti-conservative while a patient-level test
     stays calibrated. The generative model is R's; the random draws are not (numpy vs
-    Mersenne-Twister), and the global numpy RNG is not touched. ``obs`` has no ``Age``.
+    Mersenne-Twister), and the global numpy RNG is not touched. `obs` has no `Age`.
 
     Parameters
     ----------
     n_samples, n_per, n_genes, field, sd_lib_sample, sd_lib_celltype, seed
-        As in :func:`simulate_toy`.
+        As in `simulate_toy`.
     sd_patient : float
         Planted between-sample intercept SD.
     sd_nested : float
@@ -282,7 +282,7 @@ def simulate_clustered(
     Returns
     -------
     anndata.AnnData
-        As :func:`simulate_toy` but ``obs`` has no ``Age`` column.
+        As `simulate_toy` but `obs` has no `Age` column.
     """
     rng = np.random.default_rng(seed)
     gene_names = [f"G{i}" for i in range(1, n_genes + 1)]

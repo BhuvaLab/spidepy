@@ -1,9 +1,9 @@
-"""The slopes engine's per-patient niche slopes and their variances (``R/patient-slopes.R``).
+"""The slopes engine's per-patient niche slopes and their variances (`R/patient-slopes.R`).
 
 From the shared, condition-free fit of an index type, every patient gets a one-step negative
 binomial estimate of its own niche slopes (one Fisher-scoring step from the pooled slope, with
 the other coefficients and the dispersion held at the shared fit and the patient's intercept
-profiled out). Two variances accompany each slope: the model-based ``diag(I_s^-1)`` and a
+profiled out). Two variances accompany each slope: the model-based `diag(I_s^-1)` and a
 within-patient spatial tile sandwich. Arrays are genes x patients x tested niches in R's
 dimension order, NaN where R has NA.
 """
@@ -19,7 +19,7 @@ from ._glm import _bp_genes, _row, _working_wr
 
 
 def _median_cols(x: np.ndarray) -> np.ndarray:
-    """Column medians ignoring NaN; NaN for an all-NaN column (R ``median(na.rm = TRUE)``)."""
+    """Column medians ignoring NaN; NaN for an all-NaN column (R `median(na.rm = TRUE)`)."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
         return np.nanmedian(x, axis=0)
@@ -36,14 +36,14 @@ def _patient_slopes(
     offset=None,
     n_jobs: int = 1,
 ) -> dict:
-    """Per-patient niche slopes and variances for every gene (``.patientSlopes``).
+    """Per-patient niche slopes and variances for every gene (`.patientSlopes`).
 
     Parameters
     ----------
     fit : dict
-        Shared fit with ``alpha`` (genes x columns of the design) and ``psi`` (genes).
+        Shared fit with `alpha` (genes x columns of the design) and `psi` (genes).
     des : dict
-        The per-index design from ``_index_design``.
+        The per-index design from `_index_design`.
     Yk : array or sparse matrix
         Counts of the index cells, genes x cells.
     L : array
@@ -60,8 +60,8 @@ def _patient_slopes(
     Returns
     -------
     dict
-        ``beta``, ``v_tile``, ``v_model`` (genes x patients x tested niches), ``pooled``
-        (genes x tested niches), plus the ``patients`` and ``niches``
+        `beta`, `v_tile`, `v_model` (genes x patients x tested niches), `pooled`
+        (genes x tested niches), plus the `patients` and `niches`
         labels.
     """
     alpha = np.asarray(fit["alpha"], dtype=float)
@@ -156,9 +156,9 @@ def _patient_slopes(
 
 
 def _patient_factor(v_tile: np.ndarray, v_model: np.ndarray) -> np.ndarray:
-    """The per-(patient, niche) variance factor of the pooled test (``.patientFactor``).
+    """The per-(patient, niche) variance factor of the pooled test (`.patientFactor`).
 
-    ``f_sn = max(1, median over genes of v_tile / v_model)`` over the whole gene family, with
+    `f_sn = max(1, median over genes of v_tile / v_model)` over the whole gene family, with
     non-finite ratios ignored and 1 where no ratio is left. Returns patients x niches.
     """
     with np.errstate(divide="ignore", invalid="ignore"):

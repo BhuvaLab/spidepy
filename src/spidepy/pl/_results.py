@@ -1,4 +1,4 @@
-"""The results views (``R/plot-results.R``): where the calls are, the strongest triplets, the
+"""The results views (`R/plot-results.R`): where the calls are, the strongest triplets, the
 spillover signature, triplet heatmaps and p-value bands."""
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ _FS = 11 * 1.1  # base text size of theme_spiDE
 
 
 def _strip_box(ax, text: str, side: str = "right") -> None:
-    """A boxed facet strip beside the panel (the row labels of ``facet_grid``)."""
+    """A boxed facet strip beside the panel (the row labels of `facet_grid`)."""
     ax.text(1.03, 0.5, text, transform=ax.transAxes, rotation=270, ha="left", va="center",
             fontsize=_FS * 0.8,
             bbox={"boxstyle": "square,pad=0.3", "fc": "none", "ec": "black", "lw": 0.5})  # fmt: skip
@@ -58,7 +58,7 @@ def _strip_box(ax, text: str, side: str = "right") -> None:
 
 
 def _sort_by(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
-    """Rows ordered by string columns with ``r_sort_str``'s collation (first column slowest)."""
+    """Rows ordered by string columns with `r_sort_str`'s collation (first column slowest)."""
     keys = [
         df[c].map({v: i for i, v in enumerate(r_sort_str(set(df[c])))}).to_numpy() for c in cols
     ]
@@ -66,11 +66,11 @@ def _sort_by(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
 
 
 def _call_counts(res, test: str, fdr: float) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Counts of genes with ``q <= fdr`` per (index, niche, direction) and the tested pairs
-    (the inputs of R ``plotCallMap``'s builders).
+    """Counts of genes with `q <= fdr` per (index, niche, direction) and the tested pairs
+    (the inputs of R `plotCallMap`'s builders).
 
-    ``n`` has ``index, niche, direction, calls`` ordered as R's ``aggregate`` (direction slowest,
-    index fastest); ``tested`` the distinct (index, niche) with a finite p.
+    `n` has `index, niche, direction, calls` ordered as R's `aggregate` (direction slowest,
+    index fastest); `tested` the distinct (index, niche) with a finite p.
     """
     tab = res.table[res.table["test"] == test]
     fin = np.isfinite(tab["p"].to_numpy(dtype=float))
@@ -100,8 +100,8 @@ def _call_counts(res, test: str, fdr: float) -> tuple[pd.DataFrame, pd.DataFrame
 
 
 def _call_heatmap(n: pd.DataFrame, tested: pd.DataFrame, lab: dict) -> pd.DataFrame:
-    """The grid behind the call heatmap (R ``.callHeatmap``'s data): one row per (index, niche,
-    direction) with ``tested``, ``calls`` and ``signed`` (+/- log10(1 + calls)); ``direction`` is
+    """The grid behind the call heatmap (R `.callHeatmap`'s data): one row per (index, niche,
+    direction) with `tested`, `calls` and `signed` (+/- log10(1 + calls)); `direction` is
     a categorical of the legend labels."""
     idx = r_sort_str(set(tested["index"]))
     nic = r_sort_str(set(tested["niche"]))
@@ -125,10 +125,10 @@ def _call_heatmap(n: pd.DataFrame, tested: pd.DataFrame, lab: dict) -> pd.DataFr
 
 
 def _call_graph(n: pd.DataFrame, tested: pd.DataFrame, lab: dict, min_calls: float) -> dict:
-    """The edges and nodes of the call graph (R ``.callGraph``'s layer data).
+    """The edges and nodes of the call graph (R `.callGraph`'s layer data).
 
-    Cell types sit on the unit circle at angle ``pi/2 - 2 pi (i - 1) / n`` in sorted order; an
-    edge runs from the niche type to the index type, shortened by 0.13 at both ends. ``nodes``
+    Cell types sit on the unit circle at angle `pi/2 - 2 pi (i - 1) / n` in sorted order; an
+    edge runs from the niche type to the index type, shortened by 0.13 at both ends. `nodes`
     holds each type once per panel, with its label wrapped to 12 characters and the label's
     anchors.
     """
@@ -166,7 +166,7 @@ def plot_call_map(
     res, test: str | None = None, fdr: float | None = None, style: str = "heatmap",
     min_calls: int = 1,
 ) -> Figure:  # fmt: skip
-    """Where the calls are (R ``plotCallMap``).
+    """Where the calls are (R `plotCallMap`).
 
     The number of genes called for every (index, niche) pair, split by direction: for the pooled
     test, a slope that rises or falls with the niche's density; for the condition-specific test,
@@ -177,7 +177,7 @@ def plot_call_map(
 
     Read it for which cell-type pairs carry the signal, and for pairs whose calls all go one way
     toward one niche type (the shape segmentation spillover gives; see
-    :func:`~spidepy.pl.plot_spillover`). An arrow is an association, not signalling.
+    `plot_spillover`). An arrow is an association, not signalling.
 
     Parameters
     ----------
@@ -253,7 +253,7 @@ def _draw_call_heatmap(grid: pd.DataFrame, lab: dict) -> Figure:
 
 
 def _line_mm(calls, lo: float, hi: float) -> np.ndarray:
-    """``scale_linewidth(range = c(0.3, 2.6))``: calls rescaled linearly to millimetres."""
+    """`scale_linewidth(range = c(0.3, 2.6))`: calls rescaled linearly to millimetres."""
     calls = np.asarray(calls, dtype=float)
     if hi <= lo:
         return np.full(len(calls), (0.3 + 2.6) / 2)
@@ -322,9 +322,9 @@ def _top_triplets_data(
     res, test=None, n: int = 30, gene=None, index=None, niche=None, adata=None, fold: float = 4,
     fdr=None, assay: str = "counts", name: str = "Niche",
 ) -> pd.DataFrame:  # fmt: skip
-    """The plotted rows of :func:`plot_top_triplets` (R ``plotTopTriplets``' ``p$data``): the
-    results table's columns plus ``lo``, ``hi``, ``called``, ``direction``, ``marker`` and
-    ``label`` (R's plotmath string); ``called`` and ``direction`` are categoricals."""
+    """The plotted rows of `plot_top_triplets` (R `plotTopTriplets`' `p$data`): the
+    results table's columns plus `lo`, `hi`, `called`, `direction`, `marker` and
+    `label` (R's plotmath string); `called` and `direction` are categoricals."""
     check_results(res, "plot_top_triplets()")
     test = _resolve_test(res, test)
     fdr = res.fdr if fdr is None else fdr
@@ -368,14 +368,14 @@ def plot_top_triplets(
     res, test=None, n: int = 30, gene=None, index=None, niche=None, adata=None, fold: float = 4,
     fdr=None, assay: str = "counts", name: str = "Niche",
 ) -> Figure:  # fmt: skip
-    """The strongest triplets, or those of chosen genes (R ``plotTopTriplets``).
+    """The strongest triplets, or those of chosen genes (R `plotTopTriplets`).
 
     A forest plot: each triplet's estimate (the pooled slope, or the slope difference between
-    conditions) with its 95% confidence interval, faded where it is not called. ``gene``,
-    ``index`` and ``niche`` filter the table before the ``n`` smallest p-values are taken, so
-    ``gene=["CD74", "HLA-DRA"]`` shows those genes' triplets. With ``adata``, a hollow triangle
-    marks a gene at least ``fold``-fold higher in the niche type than in the index type (see
-    :func:`~spidepy.pl.plot_spillover`).
+    conditions) with its 95% confidence interval, faded where it is not called. `gene`,
+    `index` and `niche` filter the table before the `n` smallest p-values are taken, so
+    `gene=["CD74", "HLA-DRA"]` shows those genes' triplets. With `adata`, a hollow triangle
+    marks a gene at least `fold`-fold higher in the niche type than in the index type (see
+    `plot_spillover`).
 
     Parameters
     ----------
@@ -393,7 +393,7 @@ def plot_top_triplets(
     fdr : float, optional
         The q-value threshold of a call (default: the results').
     assay, name : str
-        The counts layer and the niche ``obsm`` prefix.
+        The counts layer and the niche `obsm` prefix.
 
     Returns
     -------
@@ -484,11 +484,11 @@ def _spillover_data(
     res, adata, test: str = "pooled", fold: float = 4, label: int = 6, fdr=None,
     assay: str = "counts", name: str = "Niche",
 ) -> dict:  # fmt: skip
-    """The data behind :func:`plot_spillover` (R ``plotSpillover``).
+    """The data behind `plot_spillover` (R `plotSpillover`).
 
-    Returns ``data`` (R's ``p$data``: the test's tested rows with ``fold`` (log2), ``z`` (signed)
-    and ``status``), ``labels`` (the strongest ``label`` calls at least ``fold``-fold in the
-    niche type, with R's plotmath ``text``), ``n_marker`` and ``n_called``.
+    Returns `data` (R's `p$data`: the test's tested rows with `fold` (log2), `z` (signed)
+    and `status`), `labels` (the strongest `label` calls at least `fold`-fold in the
+    niche type, with R's plotmath `text`), `n_marker` and `n_called`.
     """
     check_results(res, "plot_spillover()")
     test = _resolve_test(res, test)
@@ -525,8 +525,8 @@ def _spillover_data(
 
 
 def _spread(y: np.ndarray, gap: float, lo: float, hi: float) -> np.ndarray:
-    """Spread values so neighbours are at least ``gap`` apart, keeping their order and staying
-    inside ``[lo, hi]`` (labels pushed apart in y, as ``ggrepel``'s ``direction = "y"``)."""
+    """Spread values so neighbours are at least `gap` apart, keeping their order and staying
+    inside `[lo, hi]` (labels pushed apart in y, as `ggrepel`'s `direction = "y"`)."""
     order = np.argsort(y, kind="stable")
     out = np.asarray(y, dtype=float)[order].copy()
     for i in range(1, len(out)):
@@ -545,7 +545,7 @@ def plot_spillover(
     res, adata, test: str = "pooled", fold: float = 4, label: int = 6, fdr=None,
     assay: str = "counts", name: str = "Niche",
 ) -> Figure:  # fmt: skip
-    """Are the calls the niche type's own markers? (R ``plotSpillover``).
+    """Are the calls the niche type's own markers? (R `plotSpillover`).
 
     Every tested triplet, placed by how much higher the gene is in the niche type than in the
     index type (log2, from each cell type's mean counts per 10,000) against the signed z of its
@@ -568,7 +568,7 @@ def plot_spillover(
     fdr : float, optional
         The q-value threshold of a call (default: the results').
     assay, name : str
-        The counts layer and the niche ``obsm`` prefix.
+        The counts layer and the niche `obsm` prefix.
 
     Returns
     -------
@@ -624,10 +624,10 @@ def plot_spillover(
 
 
 def _hclust_order(m: np.ndarray) -> list[int]:
-    """The row order of R ``hclust(dist(m))$order`` (complete linkage, Euclidean distance).
+    """The row order of R `hclust(dist(m))$order` (complete linkage, Euclidean distance).
 
     A merge puts a singleton before a cluster and the lower-numbered of two clusters first (R's
-    ``hcass2``); the order is the leaves read left to right from the last merge.
+    `hcass2`); the order is the leaves read left to right from the last merge.
     """
     n = m.shape[0]
     if n < 3:
@@ -649,11 +649,11 @@ def _hclust_order(m: np.ndarray) -> list[int]:
 def _triplet_heatmap_data(
     x, features=None, test=None, n: int = 30, fdr=None, limit=None, cluster: bool = True
 ) -> dict:  # fmt: skip
-    """The data behind :func:`plot_triplet_heatmap` (R ``plotTripletHeatmap``).
+    """The data behind `plot_triplet_heatmap` (R `plotTripletHeatmap`).
 
-    Returns ``data`` (R's ``p$data``: the plotted rows plus ``feature`` (categorical in the
-    clustered order) and ``called``), ``order`` (features, bottom to top), ``untested`` (the
-    feature x column cells with no test), ``limit``, ``fdr``, ``qcol`` and ``feature_col``.
+    Returns `data` (R's `p$data`: the plotted rows plus `feature` (categorical in the
+    clustered order) and `called`), `order` (features, bottom to top), `untested` (the
+    feature x column cells with no test), `limit`, `fdr`, `qcol` and `feature_col`.
     """
     if isinstance(x, SpiDEResults):
         tab, fcol, qcol = x.table, "gene", "q"
@@ -735,9 +735,9 @@ def _triplet_heatmap_data(
 def plot_triplet_heatmap(
     x, features=None, test=None, n: int = 30, fdr=None, limit=None, cluster: bool = True
 ) -> Figure:  # fmt: skip
-    """Niche-response profiles of genes or gene sets (R ``plotTripletHeatmap``).
+    """Niche-response profiles of genes or gene sets (R `plotTripletHeatmap`).
 
-    Features (genes, or gene sets from :func:`~spidepy.spi_gsea`) against every (index, niche)
+    Features (genes, or gene sets from `spi_gsea`) against every (index, niche)
     column: the fill is the test's t (gold: the slope rises with the niche's density, or is
     higher in the second condition; violet: the reverse), a dot marks a call, grey a feature not
     tested in that index type. Rows are clustered on their t profiles. Read it for a gene's or
@@ -746,15 +746,15 @@ def plot_triplet_heatmap(
     Parameters
     ----------
     x : SpiDEResults or pandas.DataFrame
-        Results (genes) or the table :func:`~spidepy.spi_gsea` returns (sets; calls by
-        ``q.global``).
+        Results (genes) or the table `spi_gsea` returns (sets; calls by
+        `q.global`).
     features : sequence of str, optional
-        ``None`` (the ``n`` features with the smallest p-value in any column) or the features to
+        `None` (the `n` features with the smallest p-value in any column) or the features to
         show.
     test : {"pooled", "condition"}, optional
         Default: the condition-specific test if present, else the pooled test.
     n : int
-        The number of features when ``features`` is ``None``.
+        The number of features when `features` is `None`.
     fdr : float, optional
         The q-value threshold of a call (default: the results', or 0.05 for sets).
     limit : float, optional
@@ -829,7 +829,7 @@ def plot_triplet_heatmap(
 
 
 def _tile(x: float, y: float, colour, lw: float):
-    """A unit tile with a white border (``geom_tile(colour = "white")``)."""
+    """A unit tile with a white border (`geom_tile(colour = "white")`)."""
     return Rectangle((x, y), 1, 1, fc=colour, ec="white", lw=lw * _PT)
 
 
@@ -837,8 +837,8 @@ def _tile(x: float, y: float, colour, lw: float):
 
 
 def _isort_with_index(x: np.ndarray) -> np.ndarray:
-    """The order R's ``isort_with_index`` (a shell sort, not stable) gives ``x``: the indices
-    (0-based) of ``x`` in sorted order. ``merge()`` orders its matches with it."""
+    """The order R's `isort_with_index` (a shell sort, not stable) gives `x`: the indices
+    (0-based) of `x` in sorted order. `merge()` orders its matches with it."""
     x = np.asarray(x, dtype=int).copy()
     n = len(x)
     idx = np.arange(n)
@@ -857,9 +857,9 @@ def _isort_with_index(x: np.ndarray) -> np.ndarray:
 
 
 def _p_values_data(res, bands: int = 5) -> dict:
-    """The data behind :func:`plot_p_values` (R ``plotPValues``): ``data`` (R's ``p$data``, one
-    row per tested triplet: ``gene, index, niche, test, p, band``), and ``uni`` (the level of a
-    uniform p-value histogram, ``length / 20``, per test and band)."""
+    """The data behind `plot_p_values` (R `plotPValues`): `data` (R's `p$data`, one
+    row per tested triplet: `gene, index, niche, test, p, band`), and `uni` (the level of a
+    uniform p-value histogram, `length / 20`, per test and band)."""
     check_results(res, "plot_p_values()")
     tab = res.table.loc[
         np.isfinite(res.table["p"].to_numpy(dtype=float)), ["gene", "index", "niche", "test", "p"]
@@ -893,7 +893,7 @@ def _p_values_data(res, bands: int = 5) -> dict:
 
 
 def plot_p_values(res, bands: int = 5) -> Figure:
-    """p-values by test and expression band (R ``plotPValues``).
+    """p-values by test and expression band (R `plotPValues`).
 
     Histograms of every triplet's p-value, one row per test and one column per fifth of each
     index type's genes by mean expression, with the level of a uniform distribution dashed. A

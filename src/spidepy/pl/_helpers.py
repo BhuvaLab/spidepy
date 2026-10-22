@@ -1,8 +1,8 @@
-"""Data builders shared by the plots (``R/plot-helpers.R``).
+"""Data builders shared by the plots (`R/plot-helpers.R`).
 
 Anything shared across genes is computed over the whole gene family, as the tests compute it;
 counts are read only as the plotted genes' rows or through a sparse product. Every builder
-returns what R's returns (data frames as :class:`pandas.DataFrame` with R's column names and row
+returns what R's returns (data frames as `pandas.DataFrame` with R's column names and row
 order), so the plots and their tests read the same numbers. Per-patient values are always joined
 by patient name.
 """
@@ -22,10 +22,10 @@ from ..fit import _condition_coding, _match_arg
 
 def _slope_weights(xi: dict) -> tuple[np.ndarray, np.ndarray]:
     """The slopes engine's pooled-test variance of each patient's slope and the DerSimonian-Laird
-    ``tau2`` of each (gene, niche) over the whole gene family (R ``.slopeWeights``).
+    `tau2` of each (gene, niche) over the whole gene family (R `.slopeWeights`).
 
-    The variances are ``v_model`` times the per-patient factor (genes x patients x niches) and
-    ``tau2`` is genes x niches: the weights are ``1 / (v + tau2)``.
+    The variances are `v_model` times the per-patient factor (genes x patients x niches) and
+    `tau2` is genes x niches: the weights are `1 / (v + tau2)`.
     """
     # the factor is patients x niches; align it to the arrays' patients and niches by name
     fac = xi["factor"].reindex(index=list(xi["patients"]), columns=list(xi["niches"]))
@@ -35,7 +35,7 @@ def _slope_weights(xi: dict) -> tuple[np.ndarray, np.ndarray]:
 
 def _resolve_test(x, test: str | None) -> str:
     """The condition-specific test if the results have one, else the pooled test (R
-    ``.resolveTest``, as ``results()`` does)."""
+    `.resolveTest`, as `results()` does)."""
     have = set(x.table["test"])
     if test is None:
         test = "condition" if "condition" in have else "pooled"
@@ -46,9 +46,9 @@ def _resolve_test(x, test: str | None) -> str:
 
 
 def _group_levels(fit, condition) -> pd.Series:
-    """Each patient's group as a categorical indexed by patient name (R ``.groupLevels``).
+    """Each patient's group as a categorical indexed by patient name (R `.groupLevels`).
 
-    Its condition level (categories in contrast order), or one group, ``"all patients"``, when
+    Its condition level (categories in contrast order), or one group, `"all patients"`, when
     there is no condition.
     """
     pt = fit.patients
@@ -61,7 +61,7 @@ def _group_levels(fit, condition) -> pd.Series:
 
 
 def _direction_labels(x, test: str) -> dict[str, str]:
-    """The legend labels of an ``up`` and a ``down`` call (R ``.directionLabels``)."""
+    """The legend labels of an `up` and a `down` call (R `.directionLabels`)."""
     if test == "pooled":
         return {"up": "rises with density", "down": "falls with density"}
     lv = _condition_coding(x.fit.patients, x.condition).attrs["levels"]
@@ -69,9 +69,9 @@ def _direction_labels(x, test: str) -> dict[str, str]:
 
 
 def _triplet_rows(tab: pd.DataFrame, test: str, gene, index: str, niche: str) -> pd.DataFrame:
-    """The table rows of one test for these genes, in the genes' order (R ``.tripletRows``).
+    """The table rows of one test for these genes, in the genes' order (R `.tripletRows`).
 
-    A gene without a row gives an all-missing row, as R's ``match`` indexing does.
+    A gene without a row gives an all-missing row, as R's `match` indexing does.
     """
     r = tab[(tab["test"] == test) & (tab["index"] == index) & (tab["niche"] == niche)]
     r = r.drop_duplicates("gene").set_index("gene", drop=False)
@@ -81,10 +81,10 @@ def _triplet_rows(tab: pd.DataFrame, test: str, gene, index: str, niche: str) ->
 
 
 def _expression_bands(fit, k: int = 5) -> pd.DataFrame:
-    """Each index type's genes in ``k`` bands by mean expression (R ``.expressionBands``).
+    """Each index type's genes in `k` bands by mean expression (R `.expressionBands`).
 
-    Columns ``gene, index, band`` with ``band`` a categorical ``Q1 (dimmest) ... Qk
-    (brightest)``.
+    Columns `gene, index, band` with `band` a categorical `Q1 (dimmest) ... Qk
+    (brightest)`.
     """
     labs = [f"Q{i}" for i in range(1, k + 1)]
     labs[0] += " (dimmest)"
@@ -112,7 +112,7 @@ def _expression_bands(fit, k: int = 5) -> pd.DataFrame:
 
 
 def _gene_rows(Y_index: pd.Index, genes) -> np.ndarray:
-    """Row positions of ``genes`` in the counts, failing as R does if one is missing."""
+    """Row positions of `genes` in the counts, failing as R does if one is missing."""
     pos = Y_index.get_indexer(list(genes))
     if (pos < 0).any():
         miss = [g for g, p in zip(genes, pos, strict=True) if p < 0]
@@ -123,7 +123,7 @@ def _gene_rows(Y_index: pd.Index, genes) -> np.ndarray:
 def _cell_type_means(
     adata, genes, assay: str = "counts", cell_type: str = "cell_type"
 ) -> tuple[pd.DataFrame, pd.Series]:
-    """Mean expression per 10,000 counts of these genes in every cell type (R ``.cellTypeMeans``).
+    """Mean expression per 10,000 counts of these genes in every cell type (R `.cellTypeMeans`).
 
     A product with a sparse, library-scaled indicator, so only genes x cell types is dense.
     Returns the genes x cell types means (cell types sorted, cells without counts or a type
@@ -149,9 +149,9 @@ def _niche_fold(
     tab: pd.DataFrame, adata, fit, assay: str = "counts", name: str = "Niche", pseudo: float = 0.01
 ) -> np.ndarray:
     """For each row of a results table: the gene's expression in the niche type over its
-    expression in the index type (CP10k, plus ``pseudo`` on both; R ``.nicheFold``).
+    expression in the index type (CP10k, plus `pseudo` on both; R `.nicheFold`).
 
-    A merged niche (``merge_niches``) pools its member cell types' cells.
+    A merged niche (`merge_niches`) pools its member cell types' cells.
     """
     check_fit_adata(
         adata,
@@ -187,7 +187,7 @@ def _niche_fold(
 def _index_cell_data(
     adata, fit, index: str, niche: str, genes, assay: str = "counts", name: str = "Niche"
 ) -> dict:
-    """One index type's cells as the fit used them (R ``.indexCellData``).
+    """One index type's cells as the fit used them (R `.indexCellData`).
 
     The fit's patients and cells with counts: these genes' counts (a dense genes x cells array),
     library sizes, patients and the log1p density of one niche column.

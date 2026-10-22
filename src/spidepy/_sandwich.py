@@ -1,16 +1,16 @@
-"""The sandwich engine's inference: patient-clustered CR2 with Bell-McCaffrey df (``R/sandwich.R``).
+"""The sandwich engine's inference: patient-clustered CR2 with Bell-McCaffrey df (`R/sandwich.R`).
 
 A patient-clustered CR2 sandwich (Bell & McCaffrey 2002; Pustejovsky & Tipton 2018) on the
 fixed-effects NB fit of one index type. In the working-weights space of the converged IRLS,
-``w = mu / (1 + psi mu)`` and ``r = (y - mu) / (1 + psi mu)``; ``X~`` is the non-absorbed
-columns residualised on each patient's absorbed block, ``B = (X~' W X~)^-1``,
-``G_s = sum_{i in s} w_i x~_i x~_i'`` and ``h_s = sum_{i in s} x~_i r_i``. With
-``G_s = U S U'`` (rank ``r_s``), ``R_s = S^1/2 U'`` factors the patient's weighted block, the
-nonzero eigenvalues of its hat block are those of ``R_s B R_s' = V L V'``, and the CR2 score is
-``u_s = R_s' V D V' S^-1/2 U' h_s`` with ``D = diag((1 - L)^-1/2)``, so
-``V_CR2 = B (sum_s u_s u_s') B`` and no ``n_s x n_s`` matrix is ever formed. For coefficient
-``j`` the Bell-McCaffrey df is ``tr(Gm)^2 / ||Gm||_F^2`` with
-``Gm = diag(||D V' R_s B e_j||^2) - Q' B Q``, ``Q[, s] = R_s' V D V' R_s B e_j``.
+`w = mu / (1 + psi mu)` and `r = (y - mu) / (1 + psi mu)`; `X~` is the non-absorbed
+columns residualised on each patient's absorbed block, `B = (X~' W X~)^-1`,
+`G_s = sum_{i in s} w_i x~_i x~_i'` and `h_s = sum_{i in s} x~_i r_i`. With
+`G_s = U S U'` (rank `r_s`), `R_s = S^1/2 U'` factors the patient's weighted block, the
+nonzero eigenvalues of its hat block are those of `R_s B R_s' = V L V'`, and the CR2 score is
+`u_s = R_s' V D V' S^-1/2 U' h_s` with `D = diag((1 - L)^-1/2)`, so
+`V_CR2 = B (sum_s u_s u_s') B` and no `n_s x n_s` matrix is ever formed. For coefficient
+`j` the Bell-McCaffrey df is `tr(Gm)^2 / ||Gm||_F^2` with
+`Gm = diag(||D V' R_s B e_j||^2) - Q' B Q`, `Q[, s] = R_s' V D V' R_s B e_j`.
 """
 
 from __future__ import annotations
@@ -27,9 +27,9 @@ _COLUMNS = ["gene", "niche", "estimate", "se", "df", "se_model", "psi"]
 
 
 def _solve_info(info: np.ndarray):
-    """Inverse of the information matrix, or ``None`` where R ``solve`` fails or gives non-finite.
+    """Inverse of the information matrix, or `None` where R `solve` fails or gives non-finite.
 
-    R's ``solve`` errors on an exactly singular matrix or one with reciprocal condition number
+    R's `solve` errors on an exactly singular matrix or one with reciprocal condition number
     below machine epsilon; both (and a non-finite inverse) make the gene drop out.
     """
     if not np.all(np.isfinite(info)):
@@ -47,15 +47,15 @@ def _solve_info(info: np.ndarray):
 def _sandwich_cr2(
     fit: dict, des: dict, Yk, offset=None, n_jobs: int = 1, genes=None
 ) -> pd.DataFrame:
-    """Patient-clustered CR2 standard errors and Bell-McCaffrey df for every gene (``.sandwichCR2``).
+    """Patient-clustered CR2 standard errors and Bell-McCaffrey df for every gene (`.sandwichCR2`).
 
     Parameters
     ----------
     fit : dict
-        Shared fit with ``alpha`` (genes x design columns) and ``psi`` (genes); a gene with a
+        Shared fit with `alpha` (genes x design columns) and `psi` (genes); a gene with a
         non-finite entry is left out.
     des : dict
-        The per-index design from ``_index_design`` (pooled or condition model).
+        The per-index design from `_index_design` (pooled or condition model).
     Yk : array or sparse matrix
         Counts of the index cells, genes x cells; row names are the caller's gene labels.
     offset : array, optional
@@ -63,14 +63,14 @@ def _sandwich_cr2(
     n_jobs : int
         Gene blocks run in parallel; the result does not depend on it.
     genes : sequence of str, optional
-        Gene labels (R ``rownames(Yk)``); default the row labels of a DataFrame ``Yk``, else the
+        Gene labels (R `rownames(Yk)`); default the row labels of a DataFrame `Yk`, else the
         0-based row numbers as strings.
 
     Returns
     -------
     pandas.DataFrame
-        One row per fitted gene and tested niche, columns ``gene, niche, estimate, se, df,
-        se_model, psi, t, p``, genes in the order of ``Yk``. A gene whose weights,
+        One row per fitted gene and tested niche, columns `gene, niche, estimate, se, df,
+        se_model, psi, t, p`, genes in the order of `Yk`. A gene whose weights,
         residuals or information matrix are non-finite or singular is omitted.
     """
     genes = _gene_labels(genes, Yk)
@@ -190,7 +190,7 @@ def _sandwich_cr2(
 
 
 def _gene_labels(genes, Yk) -> list[str]:
-    """Gene labels (R ``rownames(Yk)``): as given, else a DataFrame's index, else row numbers."""
+    """Gene labels (R `rownames(Yk)`): as given, else a DataFrame's index, else row numbers."""
     if genes is not None:
         return [str(x) for x in genes]
     if isinstance(Yk, pd.DataFrame):

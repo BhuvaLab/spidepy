@@ -1,6 +1,6 @@
-"""``test_niche_abundance``: the between-patient niche-abundance association (``R/niche-abundance.R``).
+"""`test_niche_abundance`: the between-patient niche-abundance association (`R/niche-abundance.R`).
 
-The per-patient intercepts of :func:`~spidepy.fit_spide` absorb the association between a
+The per-patient intercepts of `fit_spide` absorb the association between a
 patient's mean niche density around an index cell type and the patient's mean expression in
 that type. Here it is tested on its own terms: per-(sample, index type) pseudobulk log2-CPM
 regressed on the sample's mean log1p niche density, across samples, with a limma moderated t.
@@ -34,7 +34,7 @@ _TYPES = ("competitive", "self-contained")
 
 
 def _sanitise_array(x) -> np.ndarray:
-    """R ``.sanitise`` on a character vector that may hold missing values (kept missing)."""
+    """R `.sanitise` on a character vector that may hold missing values (kept missing)."""
     return pd.Series(x, dtype=object).str.replace(r" |-", ".", regex=True).to_numpy(dtype=object)
 
 
@@ -47,7 +47,7 @@ def _as_list(x) -> list[str]:
 
 
 def _intersect(a, b) -> list[str]:
-    """R ``intersect(a, b)``: unique elements of ``a`` (in its order) that are in ``b``."""
+    """R `intersect(a, b)`: unique elements of `a` (in its order) that are in `b`."""
     sb = set(b)
     return [s for s in dict.fromkeys(a) if s in sb]
 
@@ -58,10 +58,10 @@ def _intersect(a, b) -> list[str]:
 def _pseudobulk_by_index(Y, NM: pd.DataFrame, ct, smp, index, min_cells, prior_count) -> dict:
     """Per-(sample, index type) pseudobulk log2-CPM and mean log1p niche density.
 
-    Port of ``.pseudobulkByIndex``. ``Y`` is counts (genes x cells, dense or sparse), ``NM``
-    the niche matrix (cells x niche types). Returns ``{k: {"Y": genes x samples log2-CPM,
-    "niche": samples x niches DataFrame, "ncells", "samples"}}`` for each index type ``k``
-    with at least three samples of ``min_cells`` or more type-``k`` cells.
+    Port of `.pseudobulkByIndex`. `Y` is counts (genes x cells, dense or sparse), `NM`
+    the niche matrix (cells x niche types). Returns `{k: {"Y": genes x samples log2-CPM,
+    "niche": samples x niches DataFrame, "ncells", "samples"}}` for each index type `k`
+    with at least three samples of `min_cells` or more type-`k` cells.
     """
     ct = np.asarray(ct, dtype=object)
     smp = np.asarray(smp, dtype=object)
@@ -99,7 +99,7 @@ def _pseudobulk_by_index(Y, NM: pd.DataFrame, ct, smp, index, min_cells, prior_c
 
 
 def _patient_value(x, pat, pats) -> pd.Series:
-    """First non-missing value of a cell-level vector per patient (``.patientValue``).
+    """First non-missing value of a cell-level vector per patient (`.patientValue`).
 
     A patient with no non-missing value takes its first cell's (missing) value; a patient
     with no cell takes a missing value. The original dtype (a factor stays a factor) is kept
@@ -131,13 +131,13 @@ def _patient_value(x, pat, pats) -> pd.Series:
 # gene-set scores
 # --------------------------------------------------------------------------------------
 def _abundance_set_scores(Y, genes, genesets, type, min_size, max_size):
-    """Per-sample gene-set scores for one index type (``.abundanceSetScores``).
+    """Per-sample gene-set scores for one index type (`.abundanceSetScores`).
 
-    Each gene (row of ``Y``, genes x samples) is standardised across samples; a set's score in
+    Each gene (row of `Y`, genes x samples) is standardised across samples; a set's score in
     a sample is the mean of its genes' standardised values there, less the mean over all the
-    other genes when ``type`` is ``"competitive"``. Returns ``None`` when no set has between
-    ``min_size`` and ``max_size`` genes among the index type's, else a dict with ``S`` (sets x
-    samples), ``sets`` (their names) and ``size``.
+    other genes when `type` is `"competitive"`. Returns `None` when no set has between
+    `min_size` and `max_size` genes among the index type's, else a dict with `S` (sets x
+    samples), `sets` (their names) and `size`.
     """
     Y = np.asarray(Y, dtype=float)
     genes = np.asarray(genes, dtype=object)
@@ -166,10 +166,10 @@ def _abundance_set_scores(Y, genes, genesets, type, min_size, max_size):
 # leverage cap and the per-pair fit
 # --------------------------------------------------------------------------------------
 def _hat(X: np.ndarray) -> np.ndarray:
-    """``stats::hat(X, intercept = FALSE)``: row sums of squares of the first ``rank`` columns of Q.
+    """`stats::hat(X, intercept = FALSE)`: row sums of squares of the first `rank` columns of Q.
 
-    R takes Q from LINPACK ``dqrdc2``, whose pivoting moves negligible columns last; the
-    leading ``rank`` columns span the same space as ``X[:, pivot[:rank]]``.
+    R takes Q from LINPACK `dqrdc2`, whose pivoting moves negligible columns last; the
+    leading `rank` columns span the same space as `X[:, pivot[:rank]]`.
     """
     rank, pivot = _dqrdc2_rank(X)
     if rank == 0:
@@ -179,11 +179,11 @@ def _hat(X: np.ndarray) -> np.ndarray:
 
 
 def _cap_leverage(X, max_leverage, floor: float = 0.05) -> dict:
-    """Mallows-type weights capping sample leverage (``.capLeverage``).
+    """Mallows-type weights capping sample leverage (`.capLeverage`).
 
-    Samples whose leverage exceeds ``max_leverage`` times the average ``ncol(X) / nrow(X)`` are
-    down-weighted until none does or until they reach ``floor``. Returns ``w``, ``leverage``
-    (the largest leverage before the cap, as a multiple of the average) and ``downweighted``.
+    Samples whose leverage exceeds `max_leverage` times the average `ncol(X) / nrow(X)` are
+    down-weighted until none does or until they reach `floor`. Returns `w`, `leverage`
+    (the largest leverage before the cap, as a multiple of the average) and `downweighted`.
     """
     X = np.asarray(X, dtype=float)
     n = X.shape[0]
@@ -204,10 +204,10 @@ def _cap_leverage(X, max_leverage, floor: float = 0.05) -> dict:
 
 
 def _covariate_columns(x: pd.Series):
-    """Design columns of one covariate as ``model.matrix`` makes them, or ``None`` if missing.
+    """Design columns of one covariate as `model.matrix` makes them, or `None` if missing.
 
     Numbers enter as they are; anything else is a factor with treatment contrasts (a
-    ``Categorical`` keeps all its categories, so an unused one gives an all-zero column).
+    `Categorical` keeps all its categories, so an unused one gives an all-zero column).
     """
     if x.dtype.kind in "iuf":
         v = x.to_numpy(dtype=float)
@@ -222,10 +222,10 @@ def _covariate_columns(x: pd.Series):
 
 
 def _model_matrix(df: pd.DataFrame, covariates, interaction: bool):
-    """``model.matrix(~ niche [* condition] + covariates, df)``, or ``None`` if rows would drop.
+    """`model.matrix(~ niche [* condition] + covariates, df)`, or `None` if rows would drop.
 
     Columns in R's term order: intercept, niche, condition, covariates, niche:condition.
-    Returns ``(X, names)``.
+    Returns `(X, names)`.
     """
     cols = [np.ones(len(df)), df["niche"].to_numpy(dtype=float)]
     names = ["(Intercept)", "niche"]
@@ -248,15 +248,15 @@ def _model_matrix(df: pd.DataFrame, covariates, interaction: bool):
 
 
 def _abundance_pair(Y, df: pd.DataFrame, covariates=(), max_leverage=3):
-    """One (index, niche) pair: the design, the leverage cap and the limma fit (``.abundancePair``).
+    """One (index, niche) pair: the design, the leverage cap and the limma fit (`.abundancePair`).
 
-    ``df`` holds the samples' niche abundance, optionally ``condition`` (a categorical with the
-    two levels of the whole data) and the covariates, one row per column of ``Y`` (genes x
-    samples). The condition is coded -1/2, +1/2, so ``"niche"`` is the mean of the two
-    conditions' associations and ``"condition:niche"`` their difference (second level minus
+    `df` holds the samples' niche abundance, optionally `condition` (a categorical with the
+    two levels of the whole data) and the covariates, one row per column of `Y` (genes x
+    samples). The condition is coded -1/2, +1/2, so `"niche"` is the mean of the two
+    conditions' associations and `"condition:niche"` their difference (second level minus
     first); where the conditions leave fewer than two samples each the design is the pooled one
-    and only ``"niche"`` is reported. Returns ``None`` when no design is estimable, else
-    ``terms`` (per term ``estimate``, ``t``, ``p``), ``n``, ``leverage`` and ``downweighted``.
+    and only `"niche"` is reported. Returns `None` when no design is estimable, else
+    `terms` (per term `estimate`, `t`, `p`), `n`, `leverage` and `downweighted`.
     """
     df = df.copy()
     # a covariate constant over these samples is carried by the intercept
@@ -336,62 +336,62 @@ def test_niche_abundance(
 
     A between-patient question that the within-patient engines cannot see: does a gene's
     expression in index cell type k differ between patients whose type-k cells sit, on average,
-    among more type-n cells? (R ``testNicheAbundance``.)
+    among more type-n cells? (R `testNicheAbundance`.)
 
     For each index type k and niche type n, the per-sample pseudobulk log2-CPM of every gene in
     the type-k cells is regressed on the per-sample mean log1p niche density of type n around
-    those cells, across samples, with a limma moderated t-test. Without a ``condition`` the
-    design is ``~ niche + covariates`` and one term, ``"niche"``, is reported. With a
-    ``condition`` the design is ``~ niche * condition + covariates`` with the condition coded
-    -1/2, +1/2, and two terms are reported: ``"niche"`` (the association averaged over the two
-    conditions) and ``"condition:niche"`` (its difference, second level minus first). Where the
-    conditions leave fewer than two samples each, only ``"niche"`` is reported.
+    those cells, across samples, with a limma moderated t-test. Without a `condition` the
+    design is `~ niche + covariates` and one term, `"niche"`, is reported. With a
+    `condition` the design is `~ niche * condition + covariates` with the condition coded
+    -1/2, +1/2, and two terms are reported: `"niche"` (the association averaged over the two
+    conditions) and `"condition:niche"` (its difference, second level minus first). Where the
+    conditions leave fewer than two samples each, only `"niche"` is reported.
 
-    Samples whose leverage in the design exceeds ``max_leverage`` times the average are
+    Samples whose leverage in the design exceeds `max_leverage` times the average are
     down-weighted until none does (weights from the design alone, never from expression). With
-    ``genesets``, sets are tested instead of genes: genes are standardised across samples and a
+    `genesets`, sets are tested instead of genes: genes are standardised across samples and a
     set's score is the mean of its genes' values, less the other genes' mean when
-    ``type="competitive"``. ``q_global`` of R (column ``q.global``) is one Benjamini-Hochberg
+    `type="competitive"`. `q_global` of R (column `q.global`) is one Benjamini-Hochberg
     family per term.
 
     Parameters
     ----------
     adata : AnnData
-        With niche matrices in ``obsm`` (see :func:`~spidepy.build_niches`).
+        With niche matrices in `obsm` (see `build_niches`).
     condition : str, optional
-        The ``obs`` column of a two-level condition (constant within sample).
+        The `obs` column of a two-level condition (constant within sample).
     sigma : float
         The niche bandwidth (one value).
     index, niche : str or sequence of str, optional
         Restrict the index / niche cell types. An index type is never tested against its own
-        niche: itself, or the merged niche it is a member of (see :func:`~spidepy.merge_niches`).
+        niche: itself, or the merged niche it is a member of (see `merge_niches`).
     covariates : str or sequence of str
-        Sample-level ``obs`` columns to adjust for (first non-missing value per sample).
+        Sample-level `obs` columns to adjust for (first non-missing value per sample).
     assay, cell_type, sample_id, name : str
-        The counts layer, the ``obs`` columns of cell type and sample, the niche key prefix.
+        The counts layer, the `obs` columns of cell type and sample, the niche key prefix.
     min_cells : int
         Minimum cells of the index type a sample must contribute (else dropped for that type).
     prior_count : float
         The pseudocount of the log2-CPM.
     max_leverage : float
-        A number above 1; ``inf`` turns the cap off.
+        A number above 1; `inf` turns the cap off.
     genesets : dict, optional
-        ``{set name: gene identifiers}``; tests sets instead of genes.
+        `{set name: gene identifiers}`; tests sets instead of genes.
     type : {"competitive", "self-contained"}
-        With ``genesets``: the set against the other genes, or the set alone.
+        With `genesets`: the set against the other genes, or the set alone.
     min_size, max_size : int
-        With ``genesets``: size limits after intersecting with each index type's genes.
+        With `genesets`: size limits after intersecting with each index type's genes.
     verbose : bool
         Report progress on stderr.
 
     Returns
     -------
     pandas.DataFrame
-        One row per (gene, index type, niche type, term) with columns ``gene``, ``index``,
-        ``niche``, ``term``, ``estimate``, ``t``, ``p``, ``n_patients``, ``leverage``,
-        ``downweighted``, ``q`` (BH within each index, niche, term) and ``q.global``. With
-        ``genesets`` the column ``gene`` becomes ``set``, followed by ``size``, and a
-        ``direction`` column is added.
+        One row per (gene, index type, niche type, term) with columns `gene`, `index`,
+        `niche`, `term`, `estimate`, `t`, `p`, `n_patients`, `leverage`,
+        `downweighted`, `q` (BH within each index, niche, term) and `q.global`. With
+        `genesets` the column `gene` becomes `set`, followed by `size`, and a
+        `direction` column is added.
     """
     check_adata(adata, assay=assay, cell_type=cell_type, sample_id=sample_id)
     if (

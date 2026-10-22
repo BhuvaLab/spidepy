@@ -1,4 +1,4 @@
-"""Plots of spiDE results (matplotlib). Each plot returns a :class:`matplotlib.figure.Figure`."""
+"""Plots of spiDE results (matplotlib). Each plot returns a `matplotlib.figure.Figure`."""
 
 from ._niche import plot_niche_map, plot_niche_response
 from ._patients import plot_patient_effects, plot_patient_slopes

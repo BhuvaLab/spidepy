@@ -1,4 +1,4 @@
-"""The patient-level views (``R/plot-patients.R``): each patient's slopes for a triplet, and what
+"""The patient-level views (`R/plot-patients.R`): each patient's slopes for a triplet, and what
 the patients' intercepts (or slopes) capture."""
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ from ._theme import (
 def _slope_strip_labels(res, gene, index: str, niche: str) -> dict[str, str]:
     """Each gene's strip label: the italic symbol over the condition test's slope difference and
     q (or, without a condition, the pooled slope and q), as R's plotmath string
-    (R ``.slopeStripLabels``)."""
+    (R `.slopeStripLabels`)."""
     gene = [str(g) for g in np.atleast_1d(gene)]
     cond = bool(res.condition)
     r = _triplet_rows(res.table, "condition" if cond else "pooled", gene, index, niche)
@@ -69,13 +69,13 @@ def _strip_text(res, gene: str, index: str, niche: str) -> str:
 
 
 def _patient_slopes_data(res, gene, index: str, niche: str, ci: float = 0.95) -> dict:
-    """The data behind :func:`plot_patient_slopes` (R ``plotPatientSlopes``'s layers).
+    """The data behind `plot_patient_slopes` (R `plotPatientSlopes`'s layers).
 
-    Returns a dict: ``data`` (R's ``p$data``: one row per (gene, patient) with a usable slope,
-    ``gene, patient, slope, se, weight, condition, gene_lab``; ``patient`` and ``gene_lab`` are
-    categoricals in R's order), ``band`` (the pooled estimate and its interval per gene),
-    ``gm`` (each group's weighted mean slope per gene), ``labels`` (plotmath strip label by
-    gene), ``levels`` (the groups, in contrast order) and ``z`` (the interval's normal quantile).
+    Returns a dict: `data` (R's `p$data`: one row per (gene, patient) with a usable slope,
+    `gene, patient, slope, se, weight, condition, gene_lab`; `patient` and `gene_lab` are
+    categoricals in R's order), `band` (the pooled estimate and its interval per gene),
+    `gm` (each group's weighted mean slope per gene), `labels` (plotmath strip label by
+    gene), `levels` (the groups, in contrast order) and `z` (the interval's normal quantile).
     """
     check_results(res, "plot_patient_slopes()")
     fit = res.fit
@@ -167,7 +167,7 @@ def _patient_slopes_data(res, gene, index: str, niche: str, ci: float = 0.95) ->
 
 
 def _size_breaks(top: float) -> list[float]:
-    """Up to four round, positive breaks of a 0..``top`` size scale."""
+    """Up to four round, positive breaks of a 0..`top` size scale."""
     from matplotlib.ticker import MaxNLocator
 
     b = MaxNLocator(nbins=4, steps=[1, 2, 2.5, 5, 10]).tick_values(0, top)
@@ -175,7 +175,7 @@ def _size_breaks(top: float) -> list[float]:
 
 
 def plot_patient_slopes(res, gene, index: str, niche: str, ci: float = 0.95) -> Figure:
-    """Each patient's niche slope for a triplet (R ``plotPatientSlopes``).
+    """Each patient's niche slope for a triplet (R `plotPatientSlopes`).
 
     The evidence the tests weigh: every patient's own slope of the gene's expression in the
     index type on the niche type's density (log1p), with an interval from its within-patient
@@ -296,7 +296,7 @@ def plot_patient_slopes(res, gene, index: str, niche: str, ci: float = 0.95) -> 
 
 def _break_label(label: str) -> str:
     """A label longer than 9 characters broken onto two lines, at its first hyphen or, failing
-    that, the space nearest its middle (``"Non-\\nresponder"``; R ``.breakLabel``)."""
+    that, the space nearest its middle (`"Non-\\nresponder"`; R `.breakLabel`)."""
     label = str(label)
     if len(label) <= 9:
         return label
@@ -314,11 +314,11 @@ def _break_label(label: str) -> str:
 
 def _patient_effect_matrix(xi: dict, niche: str | None, ntop: int) -> pd.DataFrame:
     """Genes x patients, gene-centred: the intercepts, or the slopes on one niche scaled by each
-    gene's between-patient spread (R ``.patientEffectMatrix``).
+    gene's between-patient spread (R `.patientEffectMatrix`).
 
     A gene missing in most patients (one the fit could not fit) drops out first, then a patient
     missing for more than a tenth of the remaining genes, then any gene not finite in every
-    remaining patient; the ``ntop`` most expressed genes enter.
+    remaining patient; the `ntop` most expressed genes enter.
     """
     genes = [str(g) for g in xi["genes"]]
     pats = [str(p) for p in xi["patients"]]
@@ -356,11 +356,11 @@ def _patient_effect_matrix(xi: dict, niche: str | None, ntop: int) -> pd.DataFra
 
 
 def _patient_covariates(fit, xi: dict, covariates=None) -> dict:
-    """The covariates of :func:`plot_patient_effects` (R ``.patientCovariates``): every
+    """The covariates of `plot_patient_effects` (R `.patientCovariates`): every
     patient-level column that varies and is not an identifier, plus the derived ones.
 
-    Returns ``cov`` (a DataFrame by patient; numeric columns as floats, the rest categorical)
-    and ``group`` (a Series ``"patient"`` / ``"derived"`` by column name).
+    Returns `cov` (a DataFrame by patient; numeric columns as floats, the rest categorical)
+    and `group` (a Series `"patient"` / `"derived"` by column name).
     """
     pats = [str(p) for p in xi["patients"]]
     pt = fit.patients.assign(patient=fit.patients["patient"].astype(str))
@@ -399,14 +399,14 @@ def _patient_covariates(fit, xi: dict, covariates=None) -> dict:
 
 
 def _column(cov: pd.DataFrame, name: str):
-    """One covariate as a ``Categorical`` or a float array."""
+    """One covariate as a `Categorical` or a float array."""
     v = cov[name].values
     return v if isinstance(v, pd.Categorical) else cov[name].to_numpy(dtype=float)
 
 
 def _adj_r2(y: np.ndarray, v) -> float:
-    """Adjusted R^2 of ``y`` on one covariate, floored at 0; NaN when it cannot be fitted (R
-    ``.adjR2``: ``summary(lm(y ~ v))$adj.r.squared``)."""
+    """Adjusted R^2 of `y` on one covariate, floored at 0; NaN when it cannot be fitted (R
+    `.adjR2`: `summary(lm(y ~ v))$adj.r.squared`)."""
     y = np.asarray(y, dtype=float)
     if isinstance(v, pd.Categorical):
         ok = np.isfinite(y) & ~pd.isna(v)
@@ -442,12 +442,12 @@ def _patient_effects_data(
     x, index: str, niche=None, covariates=None, type: str = "association", colour_by=None,
     n_pcs: int = 5, ntop: int = 500,
 ) -> dict:  # fmt: skip
-    """The data behind :func:`plot_patient_effects` (R ``plotPatientEffects``'s ggplot).
+    """The data behind `plot_patient_effects` (R `plotPatientEffects`'s ggplot).
 
-    Returns a dict with ``data`` (R's ``p$data``: for ``"association"`` ``pc, covariate, r2,
-    group``; for ``"pca"`` ``patient, PC1, PC2`` and the covariate), ``type``, ``xlab``,
-    ``ylab`` (pca), ``pc_levels`` / ``covariate_levels`` (association), ``colour_by`` and
-    ``levels`` (the condition's levels when it is the colouring).
+    Returns a dict with `data` (R's `p$data`: for `"association"` `pc, covariate, r2,
+    group`; for `"pca"` `patient, PC1, PC2` and the covariate), `type`, `xlab`,
+    `ylab` (pca), `pc_levels` / `covariate_levels` (association), `colour_by` and
+    `levels` (the condition's levels when it is the colouring).
     """
     check_results(x, "plot_patient_effects()", fit_ok=True)
     type = _match_arg(type, ("association", "pca"), "type")
@@ -516,20 +516,20 @@ def plot_patient_effects(
     x, index: str, niche=None, covariates=None, type: str = "association", colour_by=None,
     n_pcs: int = 5, ntop: int = 500,
 ) -> Figure:  # fmt: skip
-    """What the patient intercepts, or slopes, capture (R ``plotPatientEffects``).
+    """What the patient intercepts, or slopes, capture (R `plotPatientEffects`).
 
     Every index type's shared fit gives each patient an intercept per gene
-    (:func:`~spidepy.patient_intercepts`): they absorb every difference between patients (the
+    (`patient_intercepts`): they absorb every difference between patients (the
     condition's main effect, composition, batch), which is what makes the niche slopes
     within-patient slopes. This relates the principal components of the patients' gene-centred
-    intercepts to patient covariates: every patient-level ``obs`` column, plus the patients'
+    intercepts to patient covariates: every patient-level `obs` column, plus the patients'
     index cells (log10), mean log library size, and mean log1p density of each tested niche
     type. Each tile is the adjusted R^2 of a component on a covariate.
 
     Structure in the intercepts is harmless to the tests: it is absorbed by design. With
-    ``niche``, the same analysis runs on the patients' slopes on that niche (each gene's slopes
-    scaled by its between-patient spread, as in :func:`~spidepy.spi_gsea`): a slide or batch that
-    organises the slopes can reach the condition test, and belongs in ``strata``.
+    `niche`, the same analysis runs on the patients' slopes on that niche (each gene's slopes
+    scaled by its between-patient spread, as in `spi_gsea`): a slide or batch that
+    organises the slopes can reach the condition test, and belongs in `strata`.
 
     Parameters
     ----------
@@ -537,13 +537,13 @@ def plot_patient_effects(
     index : str
         The index cell type.
     niche : str, optional
-        ``None`` (the intercepts) or a niche type (its slopes; slopes engine).
+        `None` (the intercepts) or a niche type (its slopes; slopes engine).
     covariates : sequence of str, optional
-        ``None`` (all) or the covariates to show, by the names in the plot.
+        `None` (all) or the covariates to show, by the names in the plot.
     type : {"association", "pca"}
-        The R^2 tiles, or the first two components coloured by ``colour_by``.
+        The R^2 tiles, or the first two components coloured by `colour_by`.
     colour_by : str, optional
-        For ``type="pca"``: a covariate (default the condition, else the first).
+        For `type="pca"`: a covariate (default the condition, else the first).
     n_pcs : int
         The number of components shown.
     ntop : int
@@ -603,7 +603,7 @@ def plot_patient_effects(
 
 
 def _pca_figure(D: dict, x) -> Figure:
-    """The PC1 / PC2 scatter of :func:`plot_patient_effects`, coloured by one covariate."""
+    """The PC1 / PC2 scatter of `plot_patient_effects`, coloured by one covariate."""
     d, cb_ = D["data"], D["colour_by"]
     v = d[cb_]
     with style():

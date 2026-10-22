@@ -1,5 +1,5 @@
-"""``test_spide`` and ``spide``: the tests across patients and the end-to-end run
-(``R/testSpiDE.R``, ``R/spiDE.R``)."""
+"""`test_spide` and `spide`: the tests across patients and the end-to-end run
+(`R/testSpiDE.R`, `R/spiDE.R`)."""
 
 from __future__ import annotations
 
@@ -26,34 +26,34 @@ def test_spide(
     strata: str | None = None,
     n_jobs: int = 1,
 ) -> SpiDEResults:
-    """Test niche-dependent differential expression (R ``testSpiDE``).
+    """Test niche-dependent differential expression (R `testSpiDE`).
 
     Always runs the pooled test: for every (gene, index cell type, niche cell type), whether
     the gene's expression in the index type changes with the density of the niche type, within
-    patients, consistently across patients. If a ``condition`` is given (here, or recorded by
-    :func:`~spidepy.fit_spide`), it also runs the condition-specific test: whether that slope
+    patients, consistently across patients. If a `condition` is given (here, or recorded by
+    `fit_spide`), it also runs the condition-specific test: whether that slope
     differs between the two conditions, a between-patient contrast of within-patient slopes.
 
     The condition test is carried out within a family of triplets chosen without looking at the
     condition, so the choice is exact under any relabelling of patients:
 
-    - ``"pooled_or_heterogeneity"`` (the slopes engine's default): the triplets that pass either
+    - `"pooled_or_heterogeneity"` (the slopes engine's default): the triplets that pass either
       filter below.
-    - ``"heterogeneity"``: the triplets whose slopes vary between patients more than their
-      sampling variances allow (Cochran's Q; Benjamini-Hochberg over every triplet at ``fdr``).
-    - ``"filtered"`` (the sandwich engine's default): the triplets whose pooled test passes at
-      ``fdr``.
-    - ``"all"``: every triplet.
+    - `"heterogeneity"`: the triplets whose slopes vary between patients more than their
+      sampling variances allow (Cochran's Q; Benjamini-Hochberg over every triplet at `fdr`).
+    - `"filtered"` (the sandwich engine's default): the triplets whose pooled test passes at
+      `fdr`.
+    - `"all"`: every triplet.
 
     The heterogeneity filters need each patient's slopes, so they are the slopes engine's only.
 
     Parameters
     ----------
     fit : SpiDEFit
-        A fit from :func:`~spidepy.fit_spide`.
+        A fit from `fit_spide`.
     condition : str, optional
         Default: the condition recorded by the fit, if any. Otherwise a two-level, patient-level
-        column of ``fit.patients``. With the sandwich engine it must be the condition the model
+        column of `fit.patients`. With the sandwich engine it must be the condition the model
         was fitted with. The contrast is second level minus first.
     procedure : {"pooled_or_heterogeneity", "heterogeneity", "filtered", "all"}, optional
         The condition test's family; default by engine.
@@ -68,7 +68,7 @@ def test_spide(
     Returns
     -------
     SpiDEResults
-        Read it with :meth:`SpiDEResults.results`.
+        Read it with `SpiDEResults.results`.
     """
     if not isinstance(fit, SpiDEFit):
         raise TypeError("'fit' should be a SpiDEFit from fit_spide()")
@@ -143,36 +143,36 @@ def spide(
     verbose: bool = True,
     **fit_kwargs,
 ) -> SpiDEResults:
-    """Run spiDE end to end (R ``spiDE``).
+    """Run spiDE end to end (R `spiDE`).
 
-    Builds the niche covariates at bandwidth ``sigma`` (unless ``adata`` already carries them),
-    fits the per-patient niche models (:func:`~spidepy.fit_spide`) and tests them
-    (:func:`~spidepy.test_spide`): the pooled niche test always, and the condition-specific
-    test when a ``condition`` is given.
+    Builds the niche covariates at bandwidth `sigma` (unless `adata` already carries them),
+    fits the per-patient niche models (`fit_spide`) and tests them
+    (`test_spide`): the pooled niche test always, and the condition-specific
+    test when a `condition` is given.
 
     Parameters
     ----------
     adata : AnnData
-        Cells x genes with raw counts. Niches built here are not left on ``adata``.
+        Cells x genes with raw counts. Niches built here are not left on `adata`.
     condition : str, optional
-        The ``obs`` column of a two-level, patient-level condition.
+        The `obs` column of a two-level, patient-level condition.
     sigma : float
         The niche bandwidth.
     engine : {"slopes", "sandwich"}
-        See :func:`~spidepy.fit_spide`.
+        See `fit_spide`.
     procedure, fdr
-        Passed to :func:`~spidepy.test_spide`; ``procedure`` defaults to the engine's default.
+        Passed to `test_spide`; `procedure` defaults to the engine's default.
     cell_type, sample_id : str
-        The ``obs`` columns of cell type and patient.
+        The `obs` columns of cell type and patient.
     name : str
         The niche key prefix: the niches are read from, or built into,
-        ``adata.obsm[name + sigma]``.
+        `adata.obsm[name + sigma]`.
     n_jobs : int
         Number of workers.
     verbose : bool
         Report progress on stderr.
     **fit_kwargs
-        Further arguments to :func:`~spidepy.fit_spide`.
+        Further arguments to `fit_spide`.
 
     Returns
     -------

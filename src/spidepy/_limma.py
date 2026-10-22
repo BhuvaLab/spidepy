@@ -1,19 +1,19 @@
 """The slice of limma that spiDE's pooled and niche-abundance tests use (limma 3.66.0).
 
-``lm_fit`` is ``lmFit`` (least squares, per-gene weights, NA observations; ``lm.series``),
-``fit_f_dist`` is ``fitFDist`` (with the natural-spline trend), ``squeeze_var`` is
-``squeezeVar`` (which picks ``fitFDist`` when every gene has the same residual df and
-``fitFDistUnequalDF1`` with a weighted lowess trend otherwise) and ``e_bayes`` is
-``eBayes`` for the quantities spiDE reads: ``t``, ``p.value``, ``df.total``, ``s2.prior``,
-``df.prior`` and ``s2.post``. ``var.prior`` and ``lods`` (``tmixture.matrix``) are not read
+`lm_fit` is `lmFit` (least squares, per-gene weights, NA observations; `lm.series`),
+`fit_f_dist` is `fitFDist` (with the natural-spline trend), `squeeze_var` is
+`squeezeVar` (which picks `fitFDist` when every gene has the same residual df and
+`fitFDistUnequalDF1` with a weighted lowess trend otherwise) and `e_bayes` is
+`eBayes` for the quantities spiDE reads: `t`, `p.value`, `df.total`, `s2.prior`,
+`df.prior` and `s2.post`. `var.prior` and `lods` (`tmixture.matrix`) are not read
 anywhere in spiDE and are not computed.
 
-``fit_f_dist_robustly`` is ``fitFDistRobustly`` (Winsorised moments of the log variances,
-used by ``squeezeVar(robust = TRUE)`` when every gene has the same residual df), and the robust
-half of ``fitFDistUnequalDF1`` (FDR prior weights, then df shrinkage for right outliers) covers
+`fit_f_dist_robustly` is `fitFDistRobustly` (Winsorised moments of the log variances,
+used by `squeezeVar(robust = TRUE)` when every gene has the same residual df), and the robust
+half of `fitFDistUnequalDF1` (FDR prior weights, then df shrinkage for right outliers) covers
 unequal residual df.
 
-Matrices are genes x observations, as in R. R ``NA`` is ``nan``.
+Matrices are genes x observations, as in R. R `NA` is `nan`.
 """
 
 from __future__ import annotations
@@ -41,11 +41,11 @@ _QR_TOL = 1e-7  # lm.fit / lm.wfit default rank tolerance
 # special functions
 # ---------------------------------------------------------------------------------------------
 def _logmdigamma(z) -> np.ndarray:
-    """``log(z) - digamma(z)`` as statmod's ``logmdigamma`` computes it (real ``z``).
+    """`log(z) - digamma(z)` as statmod's `logmdigamma` computes it (real `z`).
 
-    For ``z < 5`` the recurrence moves to ``z + 5``; from there an asymptotic series is used,
-    which stays accurate where ``log(z) - digamma(z)`` would cancel. ``z <= 0`` and ``nan``
-    give ``nan``.
+    For `z < 5` the recurrence moves to `z + 5`; from there an asymptotic series is used,
+    which stays accurate where `log(z) - digamma(z)` would cancel. `z <= 0` and `nan`
+    give `nan`.
     """
     z = np.asarray(z, dtype=float)
     out = np.full(z.shape, np.nan)
@@ -63,7 +63,7 @@ def _logmdigamma(z) -> np.ndarray:
 
 
 def _logmdigamma_tail(z: np.ndarray) -> np.ndarray:
-    """The ``Mod(z) >= 5`` branch of statmod's ``logmdigamma``."""
+    """The `Mod(z) >= 5` branch of statmod's `logmdigamma`."""
     x = 1 / z**2
     tail = x * (
         -1 / 12
@@ -82,10 +82,10 @@ def _logmdigamma_tail(z: np.ndarray) -> np.ndarray:
 
 
 def _trigamma_inverse(x) -> np.ndarray:
-    """Inverse of ``trigamma`` (limma ``trigammaInverse``).
+    """Inverse of `trigamma` (limma `trigammaInverse`).
 
     Newton's method on the elements in the iterative range, all stopped together when
-    ``max(-dif / y) < 1e-8`` (R's rule), so the result is accurate to about that tolerance and
+    `max(-dif / y) < 1e-8` (R's rule), so the result is accurate to about that tolerance and
     agrees with R's iterates exactly up to rounding.
     """
     x = np.array(x, dtype=float, copy=True)
@@ -124,11 +124,11 @@ def _trigamma_inverse(x) -> np.ndarray:
 # least squares with R's rank rule
 # ---------------------------------------------------------------------------------------------
 def _dqrdc2_rank(x: np.ndarray, tol: float = _QR_TOL) -> tuple[int, np.ndarray]:
-    """Rank and column pivot of ``x`` as LINPACK ``dqrdc2`` (R's ``lm.fit``) decides them.
+    """Rank and column pivot of `x` as LINPACK `dqrdc2` (R's `lm.fit`) decides them.
 
     Householder QR in which a column whose norm, after the reflections of the columns before
-    it, falls below ``tol`` times its original norm is moved to the end. Returns the rank (the
-    columns ``pivot[:rank]`` are estimable) and the 0-based pivot.
+    it, falls below `tol` times its original norm is moved to the end. Returns the rank (the
+    columns `pivot[:rank]` are estimable) and the 0-based pivot.
     """
     x = np.array(x, dtype=float, copy=True)
     n, p = x.shape
@@ -171,11 +171,11 @@ def _dqrdc2_rank(x: np.ndarray, tol: float = _QR_TOL) -> tuple[int, np.ndarray]:
 
 
 def _ls_one(X: np.ndarray, y: np.ndarray):
-    """One least-squares fit (``lm.fit`` on pre-weighted data).
+    """One least-squares fit (`lm.fit` on pre-weighted data).
 
-    Returns ``(coef, fitted, rss, rank, rinv)``: ``coef`` has ``nan`` for aliased columns,
-    ``rinv`` is the inverse of the triangular factor of the estimable columns (so that
-    ``(X'X)^-1 = rinv @ rinv.T`` on them). ``rss`` is the residual sum of squares, i.e. the
+    Returns `(coef, fitted, rss, rank, rinv)`: `coef` has `nan` for aliased columns,
+    `rinv` is the inverse of the triangular factor of the estimable columns (so that
+    `(X'X)^-1 = rinv @ rinv.T` on them). `rss` is the residual sum of squares, i.e. the
     sum of squared effects beyond the rank.
     """
     n, p = X.shape
@@ -193,7 +193,7 @@ def _ls_one(X: np.ndarray, y: np.ndarray):
 
 
 def _as_matrix_weights(weights, shape: tuple[int, int]) -> np.ndarray:
-    """limma ``asMatrixWeights``: a weight matrix, gene weights or array weights as G x n."""
+    """limma `asMatrixWeights`: a weight matrix, gene weights or array weights as G x n."""
     g, n = shape
     w = np.asarray(weights, dtype=float)
     if w.ndim == 0:
@@ -217,29 +217,29 @@ def _as_matrix_weights(weights, shape: tuple[int, int]) -> np.ndarray:
 
 
 def lm_fit(Y, design, weights=None) -> dict:
-    """Least-squares fit of every row of ``Y`` on ``design`` (limma ``lmFit``, method ``"ls"``).
+    """Least-squares fit of every row of `Y` on `design` (limma `lmFit`, method `"ls"`).
 
-    Each gene is fitted on its own observations: non-finite entries of ``Y`` and weights that
-    are not positive and finite are dropped (``lm.series``), so genes can have different residual
-    df. Aliased coefficients (rank deficiency after dropping observations, R's ``dqrdc2`` rule)
-    are ``nan``.
+    Each gene is fitted on its own observations: non-finite entries of `Y` and weights that
+    are not positive and finite are dropped (`lm.series`), so genes can have different residual
+    df. Aliased coefficients (rank deficiency after dropping observations, R's `dqrdc2` rule)
+    are `nan`.
 
     Parameters
     ----------
     Y : array (G, n)
-        Expression, genes x observations; ``nan`` marks a missing observation.
+        Expression, genes x observations; `nan` marks a missing observation.
     design : array (n, p)
-        Design matrix without ``nan``.
+        Design matrix without `nan`.
     weights : None, array (G, n), (n,) or (G,)
-        Observation weights; a vector is read as array weights (length ``n``) or gene weights
-        (length ``G``) as ``asMatrixWeights`` does (gene weights win when ``G == n``).
+        Observation weights; a vector is read as array weights (length `n`) or gene weights
+        (length `G`) as `asMatrixWeights` does (gene weights win when `G == n`).
 
     Returns
     -------
     dict
-        ``coefficients`` and ``stdev_unscaled`` (G, p), ``sigma`` and ``df_residual`` (G,),
-        ``Amean`` (G,; row means of ``Y`` ignoring ``nan``, as ``lmFit`` on a matrix) and
-        ``design``. ``sigma`` is ``nan`` for genes with no residual df.
+        `coefficients` and `stdev_unscaled` (G, p), `sigma` and `df_residual` (G,),
+        `Amean` (G,; row means of `Y` ignoring `nan`, as `lmFit` on a matrix) and
+        `design`. `sigma` is `nan` for genes with no residual df.
     """
     Y = np.array(Y, dtype=float, copy=True)
     if Y.ndim != 2:
@@ -333,13 +333,13 @@ def lm_fit(Y, design, weights=None) -> dict:
 # natural spline with intercept (the trend design of fitFDist)
 # ---------------------------------------------------------------------------------------------
 def _ns_intercept(x: np.ndarray, df: int):
-    """``splines::ns(x, df = df, intercept = TRUE)`` and a predictor for new values.
+    """`splines::ns(x, df = df, intercept = TRUE)` and a predictor for new values.
 
-    ``ns`` with an intercept puts ``df - 2`` interior knots at quantiles of ``x`` (spanormpy's
-    ``_ns_knots`` places ``df - 1`` for the no-intercept basis, so it is called with
-    ``df - 1``), keeps the constant column of the B-spline basis and projects both onto the
-    null space of the second-derivative boundary constraints. Returns ``(basis, predict)``;
-    ``predict(newx)`` extends linearly beyond the boundary knots as ``predict.ns`` does.
+    `ns` with an intercept puts `df - 2` interior knots at quantiles of `x` (spanormpy's
+    `_ns_knots` places `df - 1` for the no-intercept basis, so it is called with
+    `df - 1`), keeps the constant column of the B-spline basis and projects both onto the
+    null space of the second-derivative boundary constraints. Returns `(basis, predict)`;
+    `predict(newx)` extends linearly beyond the boundary knots as `predict.ns` does.
     """
     knots, bk = _ns_knots(x, df - 1)
     aknots = np.sort(np.concatenate([np.repeat(bk, 4), knots]))
@@ -367,27 +367,27 @@ def _ns_intercept(x: np.ndarray, df: int):
 # fitFDist
 # ---------------------------------------------------------------------------------------------
 def fit_f_dist(x, df1, covariate=None):
-    """Moment estimates of the scaled F prior of the variances (limma ``fitFDist``).
+    """Moment estimates of the scaled F prior of the variances (limma `fitFDist`).
 
-    Models ``x ~ scale * F(df1, df2)``. With a ``covariate`` the log scale is a natural cubic
-    spline of it (``ns(covariate, df = splinedf, intercept = TRUE)`` with ``splinedf`` between
+    Models `x ~ scale * F(df1, df2)`. With a `covariate` the log scale is a natural cubic
+    spline of it (`ns(covariate, df = splinedf, intercept = TRUE)` with `splinedf` between
     1 and 4 by the number of usable values); without, it is constant.
 
     Parameters
     ----------
     x : array (n,)
-        Sample variances; ``nan``, infinite and negative values are skipped (their trend
-        value is predicted from ``covariate``).
+        Sample variances; `nan`, infinite and negative values are skipped (their trend
+        value is predicted from `covariate`).
     df1 : float or array (n,)
-        Residual df of ``x``; values <= 1e-15 are skipped.
+        Residual df of `x`; values <= 1e-15 are skipped.
     covariate : array (n,) or None
-        Trend covariate, no ``nan``; infinite values are moved to just outside the finite range.
+        Trend covariate, no `nan`; infinite values are moved to just outside the finite range.
 
     Returns
     -------
     scale, df2
-        ``scale`` is a float (no trend) or an array (n,) (trend), ``df2`` a float, possibly
-        ``inf``; both ``nan`` when nothing can be estimated.
+        `scale` is a float (no trend) or an array (n,) (trend), `df2` a float, possibly
+        `inf`; both `nan` when nothing can be estimated.
     """
     x = np.array(x, dtype=float, copy=True).ravel()
     n = len(x)
@@ -484,7 +484,7 @@ _WL_THRESHOLD = 1e-7  # THRESHOLD in weighted_lowess.c
 
 
 def _wl_seeds(xs: np.ndarray, delta: float) -> np.ndarray:
-    """``find_seeds``: first and last point plus every point more than ``delta`` past the last."""
+    """`find_seeds`: first and last point plus every point more than `delta` past the last."""
     n = len(xs)
     seeds = [0]
     last = 0
@@ -497,10 +497,10 @@ def _wl_seeds(xs: np.ndarray, delta: float) -> np.ndarray:
 
 
 def _wl_limits(xs, ws, pt: int, spanweight: float) -> tuple[int, int, float]:
-    """``find_limits`` for one seed: window ends and the largest distance in it.
+    """`find_limits` for one seed: window ends and the largest distance in it.
 
     The C code grows the window one point at a time, taking the left neighbour only when it is
-    strictly nearer than the right one, until the weights add up to ``spanweight``. That is the
+    strictly nearer than the right one, until the weights add up to `spanweight`. That is the
     other points taken in order of distance with the right side first on ties, so the window is
     found with one sort and a cumulative sum (same order of additions), then extended over ties.
     """
@@ -524,7 +524,7 @@ def _wl_limits(xs, ws, pt: int, spanweight: float) -> tuple[int, int, float]:
 
 
 def _wl_fit(xs, ys, ws, rw, pt: int, left: int, right: int, dist: float) -> float:
-    """``lowess_fit``: local linear fit at ``xs[pt]`` over ``[left, right]``."""
+    """`lowess_fit`: local linear fit at `xs[pt]` over `[left, right]`."""
     sl = slice(left, right + 1)
     if dist < _WL_THRESHOLD:
         work = ws[sl] * rw[sl]
@@ -542,13 +542,13 @@ def _wl_fit(xs, ys, ws, rw, pt: int, left: int, right: int, dist: float) -> floa
 
 
 def _weighted_lowess(x, y, weights, span: float, iterations: int = 1, npts: int = 200):
-    """limma ``weightedLowess`` (R wrapper and ``weighted_lowess.c``), fitted values only.
+    """limma `weightedLowess` (R wrapper and `weighted_lowess.c`), fitted values only.
 
-    A line-by-line port. ``delta`` comes from ``npts`` as in the wrapper (0 when
-    ``npts >= n``); seeds are the points more than ``delta`` apart, fitted exactly, with the
-    points between interpolated linearly. Each window holds ``span`` times the total prior
-    weight. With ``iterations > 1`` robustness weights (bisquare on the weighted MAD) are
-    iterated as in the C code. Ties in ``x`` are handled as the C code does (windows extend
+    A line-by-line port. `delta` comes from `npts` as in the wrapper (0 when
+    `npts >= n`); seeds are the points more than `delta` apart, fitted exactly, with the
+    points between interpolated linearly. Each window holds `span` times the total prior
+    weight. With `iterations > 1` robustness weights (bisquare on the weighted MAD) are
+    iterated as in the C code. Ties in `x` are handled as the C code does (windows extend
     over ties; the interpolation slope falls back to the end-point average when the seeds
     coincide).
     """
@@ -616,11 +616,11 @@ def _weighted_lowess(x, y, weights, span: float, iterations: int = 1, npts: int 
 
 
 def _loess_fit_trend(y, x, weights, span, min_weight, max_weight) -> np.ndarray:
-    """limma ``loessFit(y, x, weights, span, iterations = 1)$fitted`` (weighted, non-null weights).
+    """limma `loessFit(y, x, weights, span, iterations = 1)$fitted` (weighted, non-null weights).
 
-    Weights are clamped to ``[min_weight, max_weight]``. Equal weights (limma then calls
-    ``lowess``) cannot arise from ``fitFDistUnequalDF1`` (the weights differ with the df) and
-    raise ``NotImplementedError``.
+    Weights are clamped to `[min_weight, max_weight]`. Equal weights (limma then calls
+    `lowess`) cannot arise from `fitFDistUnequalDF1` (the weights differ with the df) and
+    raise `NotImplementedError`.
     """
     n = len(y)
     fitted = np.full(n, np.nan)
@@ -651,7 +651,7 @@ def _loess_fit_trend(y, x, weights, span, min_weight, max_weight) -> np.ndarray:
 
 
 def _p_adjust_bh(p: np.ndarray) -> np.ndarray:
-    """``p.adjust(p, method = "BH")`` (no missing values)."""
+    """`p.adjust(p, method = "BH")` (no missing values)."""
     n = len(p)
     o = np.argsort(-p, kind="stable")
     ro = np.argsort(o, kind="stable")
@@ -660,16 +660,16 @@ def _p_adjust_bh(p: np.ndarray) -> np.ndarray:
 
 
 def _choose_lowess_span(n: int, small_n: float = 50, min_span: float = 0.3, power=1 / 3) -> float:
-    """limma ``chooseLowessSpan``."""
+    """limma `chooseLowessSpan`."""
     return min(min_span + (1 - min_span) * (small_n / n) ** power, 1.0)
 
 
 def _force_monotone(df2_shrunk: np.ndarray, o: np.ndarray) -> np.ndarray:
-    """Make ``df2_shrunk`` non-decreasing along the order ``o`` (the monotone block of limma).
+    """Make `df2_shrunk` non-decreasing along the order `o` (the monotone block of limma).
 
-    Ports the ``which.min(cumsum(x)/seq_along(x))`` pooling of ``fitFDistUnequalDF1``: values up
-    to the minimum running mean are replaced by it, then a running maximum is taken. ``which.min``
-    skips NaN and fails (``1:integer(0)``) only when every running mean is NaN.
+    Ports the `which.min(cumsum(x)/seq_along(x))` pooling of `fitFDistUnequalDF1`: values up
+    to the minimum running mean are replaced by it, then a running maximum is taken. `which.min`
+    skips NaN and fails (`1:integer(0)`) only when every running mean is NaN.
     """
     n = len(df2_shrunk)
     ordered = df2_shrunk[o]
@@ -686,17 +686,17 @@ def _force_monotone(df2_shrunk: np.ndarray, o: np.ndarray) -> np.ndarray:
 def _fit_f_dist_unequal_df1(
     x, df1, covariate=None, span=None, robust=False, prior_weights=None
 ) -> dict:
-    """limma ``fitFDistUnequalDF1``: maximum-likelihood ``df2`` for genes with different df.
+    """limma `fitFDistUnequalDF1`: maximum-likelihood `df2` for genes with different df.
 
-    The prior scale (log) is the weighted mean of ``log(x) + log(1/psi(df/2)...)`` (weights
-    ``1/trigamma(df1/2)``) or, with a covariate, its weighted lowess trend; ``df2`` maximises the
-    F likelihood by Brent's method on ``par = df2/2 / (1 + df2/2)`` in (0.5, 0.9998).
-    With ``robust`` the genes are tested two-sided against the fitted prior, Benjamini-Hochberg
-    FDRs (capped to 1 above 0.3) become prior weights for a refit, and ``df2_shrunk`` lowers the
+    The prior scale (log) is the weighted mean of `log(x) + log(1/psi(df/2)...)` (weights
+    `1/trigamma(df1/2)`) or, with a covariate, its weighted lowess trend; `df2` maximises the
+    F likelihood by Brent's method on `par = df2/2 / (1 + df2/2)` in (0.5, 0.9998).
+    With `robust` the genes are tested two-sided against the fitted prior, Benjamini-Hochberg
+    FDRs (capped to 1 above 0.3) become prior weights for a refit, and `df2_shrunk` lowers the
     prior df of right-outlying genes.
 
-    Returns a dict with ``scale`` and ``df2`` (``nan`` if fewer than two informative genes);
-    robust fits that found outliers add ``df2_outlier`` and the per-gene ``df2_shrunk``.
+    Returns a dict with `scale` and `df2` (`nan` if fewer than two informative genes);
+    robust fits that found outliers add `df2_outlier` and the per-gene `df2_shrunk`.
     """
     x = np.array(x, dtype=float, copy=True).ravel()
     n = len(x)
@@ -836,7 +836,7 @@ def _fit_f_dist_unequal_df1(
 # squeezeVar and eBayes
 # ---------------------------------------------------------------------------------------------
 def _squeeze_var_post(var, df, var_prior, df_prior) -> np.ndarray:
-    """limma ``.squeezeVar``: the posterior variances, allowing infinite ``df_prior``."""
+    """limma `.squeezeVar`: the posterior variances, allowing infinite `df_prior`."""
     var = np.asarray(var, dtype=float)
     df = np.asarray(df, dtype=float)
     df_prior = np.asarray(df_prior, dtype=float)
@@ -857,19 +857,19 @@ def _squeeze_var_post(var, df, var_prior, df_prior) -> np.ndarray:
 def squeeze_var(
     var, df, covariate=None, span=None, robust=False, winsor_tail_p=(0.05, 0.1), legacy=None
 ) -> dict:
-    """Empirical-Bayes shrinkage of sample variances (limma ``squeezeVar``).
+    """Empirical-Bayes shrinkage of sample variances (limma `squeezeVar`).
 
-    Estimates the prior (``df_prior``, ``var_prior``) from ``var`` with ``fit_f_dist`` when
-    all genes with residual df share one value (``legacy``), and with the unequal-df
-    maximum-likelihood fit (weighted lowess trend, ``span``) otherwise; then returns the
-    posterior ``(df * var + df_prior * var_prior) / (df + df_prior)``.
+    Estimates the prior (`df_prior`, `var_prior`) from `var` with `fit_f_dist` when
+    all genes with residual df share one value (`legacy`), and with the unequal-df
+    maximum-likelihood fit (weighted lowess trend, `span`) otherwise; then returns the
+    posterior `(df * var + df_prior * var_prior) / (df + df_prior)`.
 
     Returns
     -------
     dict
-        ``df_prior`` (float, or an array when the robust fit shrinks per gene), ``var_prior``
-        (float, or array (n,) with a covariate) and ``var_post`` (n,). With fewer than 3
-        genes the prior is the data: ``df_prior = 0``.
+        `df_prior` (float, or an array when the robust fit shrinks per gene), `var_prior`
+        (float, or array (n,) with a covariate) and `var_post` (n,). With fewer than 3
+        genes the prior is the data: `df_prior = 0`.
     """
     var = np.array(var, dtype=float, copy=True).ravel()
     n = len(var)
@@ -905,7 +905,7 @@ def squeeze_var(
 
 
 def _trimmed_mean(z: np.ndarray, trim: float) -> float:
-    """R ``mean(z, trim = trim)`` (``trim >= 0.5`` gives the median)."""
+    """R `mean(z, trim = trim)` (`trim >= 0.5` gives the median)."""
     n = len(z)
     if trim >= 0.5:
         return float(np.median(z))
@@ -914,7 +914,7 @@ def _trimmed_mean(z: np.ndarray, trim: float) -> float:
 
 
 def _pf_log(f, df1, df2, lower: bool):
-    """``pf(f, df1, df2, lower.tail = lower, log.p = TRUE)`` (``df2`` may be ``inf``)."""
+    """`pf(f, df1, df2, lower.tail = lower, log.p = TRUE)` (`df2` may be `inf`)."""
     f = np.asarray(f, dtype=float)
     if not lower:
         return _pf_upper_log(f, df1, df2)
@@ -924,7 +924,7 @@ def _pf_log(f, df1, df2, lower: bool):
 
 
 def _qf_log(logp, df1, df2, lower: bool):
-    """``qf(logp, df1, df2, lower.tail = lower, log.p = TRUE)`` (``df2`` may be ``inf``)."""
+    """`qf(logp, df1, df2, lower.tail = lower, log.p = TRUE)` (`df2` may be `inf`)."""
     p = np.exp(np.asarray(logp, dtype=float))
     if np.isinf(df2):
         q = stats.chi2.ppf(p, df1) if lower else stats.chi2.isf(p, df1)
@@ -933,27 +933,27 @@ def _qf_log(logp, df1, df2, lower: bool):
 
 
 def _approx_ties_mean(x, y, xout) -> np.ndarray:
-    """``approx(x, y, xout, rule = 2, ties = mean)$y``: linear, constant outside the range."""
+    """`approx(x, y, xout, rule = 2, ties = mean)$y`: linear, constant outside the range."""
     ux, inv = np.unique(x, return_inverse=True)
     uy = np.bincount(inv, weights=y) / np.bincount(inv)
     return np.interp(xout, ux, uy)
 
 
 def fit_f_dist_robustly(x, df1, covariate=None, winsor_tail_p=(0.05, 0.1)) -> dict:
-    """Robust moment estimates of the scaled F prior (limma ``fitFDistRobustly``).
+    """Robust moment estimates of the scaled F prior (limma `fitFDistRobustly`).
 
     Matches the variance of the Winsorised log variances (after removing the mean, or a
-    ``loessFit(span = 0.4)`` trend on ``covariate``) to its theoretical value under
-    ``scale * F(df1, df2)``, and shrinks ``df2`` per gene for variances in the right tail
-    (``df2_shrunk``), which is what ``squeeze_var`` uses as the prior df.
+    `loessFit(span = 0.4)` trend on `covariate`) to its theoretical value under
+    `scale * F(df1, df2)`, and shrinks `df2` per gene for variances in the right tail
+    (`df2_shrunk`), which is what `squeeze_var` uses as the prior df.
 
     Parameters
     ----------
     x : array (n,)
-        Sample variances; ``nan`` and values with ``df1 <= 1e-6`` are set aside (their
-        ``df2_shrunk`` is ``df2`` and their trend scale is interpolated).
+        Sample variances; `nan` and values with `df1 <= 1e-6` are set aside (their
+        `df2_shrunk` is `df2` and their trend scale is interpolated).
     df1 : float or array (n,)
-        Residual df of ``x``. Unequal values are first transformed to the largest df by
+        Residual df of `x`. Unequal values are first transformed to the largest df by
         matching tail probabilities.
     covariate : array (n,) or None
         Trend covariate (finite).
@@ -963,9 +963,9 @@ def fit_f_dist_robustly(x, df1, covariate=None, winsor_tail_p=(0.05, 0.1)) -> di
     Returns
     -------
     dict
-        ``scale`` (float, or array (n,) with a covariate), ``df2`` (float, possibly ``inf``),
-        ``df2_shrunk`` (n,), and, when computed, ``tail_p_value``, ``prob_outlier`` and
-        ``df2_outlier``.
+        `scale` (float, or array (n,) with a covariate), `df2` (float, possibly `inf`),
+        `df2_shrunk` (n,), and, when computed, `tail_p_value`, `prob_outlier` and
+        `df2_outlier`.
     """
     x = np.array(x, dtype=float, copy=True).ravel()
     n = len(x)
@@ -1126,27 +1126,27 @@ def e_bayes(
     winsor_tail_p=(0.05, 0.1),
     legacy=None,
 ) -> dict:
-    """Moderated t-statistics for a ``lm_fit`` result (limma ``eBayes``).
+    """Moderated t-statistics for a `lm_fit` result (limma `eBayes`).
 
     Parameters
     ----------
     fit : dict
-        ``lm_fit`` output (``coefficients``, ``stdev_unscaled``, ``sigma``, ``df_residual``,
-        and ``Amean`` when ``trend`` is true).
+        `lm_fit` output (`coefficients`, `stdev_unscaled`, `sigma`, `df_residual`,
+        and `Amean` when `trend` is true).
     proportion, stdev_coef_lim
-        Accepted for signature parity with limma; they only enter ``var.prior`` and the log-odds,
+        Accepted for signature parity with limma; they only enter `var.prior` and the log-odds,
         which are not computed here.
     trend : bool or array (G,)
-        Fit the prior variance as a trend on ``Amean`` (or on the given covariate).
+        Fit the prior variance as a trend on `Amean` (or on the given covariate).
     robust : bool
-        Estimate the prior robustly against outlying variances (``df_prior`` is then per gene).
+        Estimate the prior robustly against outlying variances (`df_prior` is then per gene).
 
     Returns
     -------
     dict
-        A copy of ``fit`` with ``t`` and ``p_value`` (G, p), ``df_total`` (G,), ``s2_prior``
-        (float or (G,)), ``df_prior`` (float or (G,)) and ``s2_post`` (G,). ``df_total`` is
-        ``df_residual + df_prior`` capped at the pooled residual df, as limma does.
+        A copy of `fit` with `t` and `p_value` (G, p), `df_total` (G,), `s2_prior`
+        (float or (G,)), `df_prior` (float or (G,)) and `s2_post` (G,). `df_total` is
+        `df_residual + df_prior` capped at the pooled residual df, as limma does.
     """
     for key in ("coefficients", "stdev_unscaled", "sigma", "df_residual"):
         if fit.get(key) is None:

@@ -1,10 +1,10 @@
 """Argument checkers: fail early with informative messages so the user-facing functions can
-assume well-formed inputs. One function per checker of R ``R/checkers.R``.
+assume well-formed inputs. One function per checker of R `R/checkers.R`.
 
-Messages are R's, with the R object names mapped to the Python ones (``spe`` -> ``adata``,
-``colData(spe)`` -> ``adata.obs``, ``buildNiches()`` -> ``build_niches()``). Every checker
-returns ``True`` on success (R ``invisible(TRUE)``). Fit and result objects are inspected by
-attribute (``fit.engine``, ``fit.index``, ``fit.params``, ``fit.sigma``) and result classes by
+Messages are R's, with the R object names mapped to the Python ones (`spe` -> `adata`,
+`colData(spe)` -> `adata.obs`, `buildNiches()` -> `build_niches()`). Every checker
+returns `True` on success (R `invisible(TRUE)`). Fit and result objects are inspected by
+attribute (`fit.engine`, `fit.index`, `fit.params`, `fit.sigma`) and result classes by
 name, so this module does not import the classes defined in later tasks.
 """
 
@@ -43,10 +43,10 @@ def _has_class(x, name: str) -> bool:
 def check_adata(
     adata, assay: str = "counts", cell_type: str = "cell_type", sample_id: str = "sample_id"
 ) -> bool:
-    """R ``checkSPE``: an AnnData with the assay and the cell type / sample id columns.
+    """R `checkSPE`: an AnnData with the assay and the cell type / sample id columns.
 
-    As R's ``assayNames`` the assay must be a layer; the name ``"counts"`` additionally
-    refers to ``X`` when no such layer exists (``get_counts`` then reads ``X``).
+    As R's `assayNames` the assay must be a layer; the name `"counts"` additionally
+    refers to `X` when no such layer exists (`get_counts` then reads `X`).
     """
     if not isinstance(adata, AnnData):
         raise TypeError("'adata' should be an AnnData object")
@@ -60,10 +60,10 @@ def check_adata(
 
 
 def check_counts(Y, integer_only: bool = False) -> bool:
-    """R ``checkCounts``: counts (genes x cells) are non-negative, optionally integer-valued.
+    """R `checkCounts`: counts (genes x cells) are non-negative, optionally integer-valued.
 
     Only a minimum is computed (sparse input is never densified). The integer rule looks at
-    the first 20 genes (rows) only, ignoring non-finite values, tolerance ``1e-8``.
+    the first 20 genes (rows) only, ignoring non-finite values, tolerance `1e-8`.
     """
     if sp.issparse(Y):
         vals = Y.data[~np.isnan(Y.data)]
@@ -92,7 +92,7 @@ def check_counts(Y, integer_only: bool = False) -> bool:
 
 
 def check_condition(adata: AnnData, condition: str) -> bool:
-    """R ``checkCondition``: the condition column exists and has exactly two levels."""
+    """R `checkCondition`: the condition column exists and has exactly two levels."""
     if condition not in adata.obs.columns:
         raise ValueError(f"condition column '{condition}' not found in adata.obs")
     vals = adata.obs[condition]
@@ -103,7 +103,7 @@ def check_condition(adata: AnnData, condition: str) -> bool:
 
 
 def check_covariates(adata: AnnData, covariates, finite_only: bool = False) -> bool:
-    """R ``checkCovariates``: covariates exist in ``obs``; with ``finite_only`` also finite.
+    """R `checkCovariates`: covariates exist in `obs`; with `finite_only` also finite.
 
     The finiteness rule applies to numeric columns only. It is opt-in because only the GLM
     design breaks on a missing value (the design matrix would lose rows); a patient-level
@@ -132,7 +132,7 @@ def check_covariates(adata: AnnData, covariates, finite_only: bool = False) -> b
 
 
 def _n_unique_by_sample(smp: np.ndarray, x: np.ndarray) -> dict[str, int]:
-    """R ``tapply(x, smp, function(v) length(unique(v[!is.na(v)])))`` (NA samples dropped)."""
+    """R `tapply(x, smp, function(v) length(unique(v[!is.na(v)])))` (NA samples dropped)."""
     df = pd.DataFrame({"s": smp, "x": x}).dropna(subset=["s"])
     n = df.groupby("s")["x"].nunique()  # nunique ignores NaN
     return {k: int(n[k]) for k in r_sort_str(n.index)}
@@ -141,7 +141,7 @@ def _n_unique_by_sample(smp: np.ndarray, x: np.ndarray) -> dict[str, int]:
 def check_sample(
     adata: AnnData, condition: str | None = None, sample_id: str = "sample_id", covariates=()
 ) -> bool:
-    """R ``checkSample``: the condition (and no covariate) is constant within a sample.
+    """R `checkSample`: the condition (and no covariate) is constant within a sample.
 
     The condition must be a patient-level variable; a covariate constant within samples is
     confounded with the per-patient intercepts. Fewer than 3 samples is a warning.
@@ -181,7 +181,7 @@ def check_sample(
 
 
 def check_column(adata: AnnData, column, what: str) -> bool:
-    """R ``checkColumn``: an optional ``obs`` column named by an argument (``None`` = unused)."""
+    """R `checkColumn`: an optional `obs` column named by an argument (`None` = unused)."""
     if column is None:
         return True
     if not isinstance(column, str) or column not in adata.obs.columns:
@@ -191,7 +191,7 @@ def check_column(adata: AnnData, column, what: str) -> bool:
 
 
 def check_fdr(fdr) -> bool:
-    """R ``checkFdr``: a single number in (0, 1]; 1 is the "show everything" threshold."""
+    """R `checkFdr`: a single number in (0, 1]; 1 is the "show everything" threshold."""
     if (
         isinstance(fdr, bool)
         or not isinstance(fdr, numbers.Real)
@@ -204,7 +204,7 @@ def check_fdr(fdr) -> bool:
 
 
 def check_procedure(procedure: str, engine: str) -> bool:
-    """R ``checkProcedure``: the heterogeneity filters need the slopes engine's slopes."""
+    """R `checkProcedure`: the heterogeneity filters need the slopes engine's slopes."""
     if procedure in ("heterogeneity", "pooled_or_heterogeneity") and engine != "slopes":
         raise ValueError(
             f'procedure = "{procedure}" needs the slopes engine\'s per-patient slopes; '
@@ -214,7 +214,7 @@ def check_procedure(procedure: str, engine: str) -> bool:
 
 
 def check_niche(adata: AnnData, sigma, name: str = "Niche") -> bool:
-    """R ``checkNiche``: the niche matrix of every requested bandwidth has been built."""
+    """R `checkNiche`: the niche matrix of every requested bandwidth has been built."""
     sigmas = [sigma] if isinstance(sigma, numbers.Real) else list(np.atleast_1d(sigma))
     missing = [k for k in (niche_key(name, s) for s in sigmas) if k not in adata.obsm]
     if missing:
@@ -226,7 +226,7 @@ def check_niche(adata: AnnData, sigma, name: str = "Niche") -> bool:
 
 
 def check_intercepts(xi: dict, what: str) -> bool:
-    """R ``checkIntercepts``: the index type's fit kept the patient intercepts."""
+    """R `checkIntercepts`: the index type's fit kept the patient intercepts."""
     if xi.get("intercept") is None:
         raise ValueError(
             f"{what} needs the patient intercepts that fit_spide() keeps from spiDE 0.99.34 "
@@ -236,9 +236,9 @@ def check_intercepts(xi: dict, what: str) -> bool:
 
 
 def check_results(x, what: str, fit_ok: bool = False) -> bool:
-    """R ``checkResults``: a ``SpiDEResults`` (or, with ``fit_ok``, a ``SpiDEFit``).
+    """R `checkResults`: a `SpiDEResults` (or, with `fit_ok`, a `SpiDEFit`).
 
-    R's legacy-object guard (``.assertCurrent``) has no counterpart: there are no legacy
+    R's legacy-object guard (`.assertCurrent`) has no counterpart: there are no legacy
     spidepy objects.
     """
     if not (_has_class(x, "SpiDEResults") or (fit_ok and _has_class(x, "SpiDEFit"))):
@@ -248,7 +248,7 @@ def check_results(x, what: str, fit_ok: bool = False) -> bool:
 
 
 def check_slopes_engine(fit, what: str) -> bool:
-    """R ``checkSlopesEngine``: per-patient slope views exist only for the slopes engine."""
+    """R `checkSlopesEngine`: per-patient slope views exist only for the slopes engine."""
     if fit.engine != "slopes":
         raise ValueError(
             f'{what} needs the slopes engine\'s per-patient slopes: fit with engine = "slopes"'
@@ -257,7 +257,7 @@ def check_slopes_engine(fit, what: str) -> bool:
 
 
 def check_triplet(fit, index, niche=None, gene=None) -> bool:
-    """R ``checkTriplet``: an index type of the fit, one of its tested niches, genes it tested."""
+    """R `checkTriplet`: an index type of the fit, one of its tested niches, genes it tested."""
     if not isinstance(index, str) or index not in fit.index:
         raise ValueError(
             f"'index' must be one of the fitted index types: {', '.join(map(str, fit.index))}"
@@ -281,10 +281,10 @@ def check_triplet(fit, index, niche=None, gene=None) -> bool:
 def check_fit_adata(
     adata: AnnData, fit, index, niches=None, assay: str = "counts", name: str = "Niche"
 ) -> bool:
-    """R ``checkFitSPE``: ``adata`` is the object the fit was made from.
+    """R `checkFitSPE`: `adata` is the object the fit was made from.
 
     It must hold the same index cells per patient (the fit's usable rule: cells with counts
-    when depth enters, every cell under ``depth = "none"``) and every niche column named.
+    when depth enters, every cell under `depth = "none"`) and every niche column named.
     """
     hint = "is it the object the fit was made from?"
     p = fit.params
@@ -327,7 +327,7 @@ def check_fit_adata(
 
 
 def check_genesets(genesets) -> bool:
-    """R ``checkGenesets``: a non-empty dict of gene lists (str sequences) keyed by name."""
+    """R `checkGenesets`: a non-empty dict of gene lists (str sequences) keyed by name."""
     if (
         not isinstance(genesets, dict)
         or not genesets

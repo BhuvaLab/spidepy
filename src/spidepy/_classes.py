@@ -1,21 +1,21 @@
-"""The two result classes of the per-patient engines (``R/AllClasses.R``).
+"""The two result classes of the per-patient engines (`R/AllClasses.R`).
 
-``SpiDEFit`` holds, per index cell type, what :func:`spidepy.fit_spide` estimated;
-``SpiDEResults`` holds the tidy table of the tests and the fit it came from. R's ``$`` slot accessor is plain attribute access here, and
-R's legacy-object guard (``.assertCurrent``) has no counterpart: there are no legacy objects.
+`SpiDEFit` holds, per index cell type, what `spidepy.fit_spide` estimated;
+`SpiDEResults` holds the tidy table of the tests and the fit it came from. R's `$` slot accessor is plain attribute access here, and
+R's legacy-object guard (`.assertCurrent`) has no counterpart: there are no legacy objects.
 
-Contents of ``SpiDEFit.index[k]`` (keys are R's list names):
+Contents of `SpiDEFit.index[k]` (keys are R's list names):
 
-- both engines: ``genes``, ``niches`` (tested), ``adjusted``, ``patients`` (lists of str),
-  ``mean_expr`` (Series by gene), ``status`` (dict ``genes, not_fitted, psi_at_bound,
-  runaway``), ``depth_r2`` (DataFrame patients x niches, or ``None``), ``intercept``
-  (DataFrame genes x patients), ``niche_mean`` (DataFrame patients x niches), ``loglib_mean``
-  (Series by patient), ``ncells`` (Series by patient, index cells).
-- slopes engine adds ``beta``, ``v_tile``, ``v_model`` (ndarrays genes x patients x niches),
-  ``pooled`` (DataFrame genes x niches), ``factor`` (DataFrame patients x niches) and ``psi``
+- both engines: `genes`, `niches` (tested), `adjusted`, `patients` (lists of str),
+  `mean_expr` (Series by gene), `status` (dict `genes, not_fitted, psi_at_bound,
+  runaway`), `depth_r2` (DataFrame patients x niches, or `None`), `intercept`
+  (DataFrame genes x patients), `niche_mean` (DataFrame patients x niches), `loglib_mean`
+  (Series by patient), `ncells` (Series by patient, index cells).
+- slopes engine adds `beta`, `v_tile`, `v_model` (ndarrays genes x patients x niches),
+  `pooled` (DataFrame genes x niches), `factor` (DataFrame patients x niches) and `psi`
   (Series by gene).
-- sandwich engine adds ``coef`` (DataFrame ``test, gene, niche, estimate, se, df, se_model,
-  psi, t, p``).
+- sandwich engine adds `coef` (DataFrame `test, gene, niche, estimate, se, df, se_model,
+  psi, t, p`).
 """
 
 from __future__ import annotations
@@ -30,12 +30,12 @@ from ._rcompat import r_num_str
 
 @dataclass
 class SpiDEFit:
-    """The fitted per-patient niche models of spiDE, returned by :func:`spidepy.fit_spide`.
+    """The fitted per-patient niche models of spiDE, returned by `spidepy.fit_spide`.
 
     Attributes
     ----------
     engine : str
-        ``"slopes"`` or ``"sandwich"``.
+        `"slopes"` or `"sandwich"`.
     sigma : float
         The niche bandwidth the fit used.
     condition : str or None
@@ -43,7 +43,7 @@ class SpiDEFit:
         engine fits condition-specific slopes only if it was given one; the slopes engine only
         records it.
     patients : pandas.DataFrame
-        One row per patient: ``patient``, ``ncells`` and every ``obs`` column constant within
+        One row per patient: `patient`, `ncells` and every `obs` column constant within
         patients (so a condition can be named at test time).
     index : dict
         One entry per index cell type holding the engine's estimates (see the module docs).
@@ -63,7 +63,7 @@ class SpiDEFit:
             raise ValueError('\'engine\' must be "slopes" or "sandwich"')
 
     def __repr__(self) -> str:
-        """R ``show``: engine, bandwidth, patients, condition and one line per index type."""
+        """R `show`: engine, bandwidth, patients, condition and one line per index type."""
         lines = [
             f"SpiDEFit ({self.engine} engine), bandwidth {r_num_str(self.sigma)}",
             f"  {len(self.patients)} patients; condition: "
@@ -79,19 +79,19 @@ class SpiDEFit:
 
 @dataclass
 class SpiDEResults:
-    """The results of spiDE's niche tests, returned by :func:`spidepy.test_spide` and
-    :func:`spidepy.spide`; read it with :meth:`results`.
+    """The results of spiDE's niche tests, returned by `spidepy.test_spide` and
+    `spidepy.spide`; read it with `results`.
 
     Attributes
     ----------
     table : pandas.DataFrame
-        One row per (gene, index, niche, test): ``gene, index, niche, test, estimate, se, t,
-        df, p, n_patients, p.heterogeneity`` (R ``p.heterogeneity``; NA for the sandwich
-        engine), ``q`` and ``in_family``.
+        One row per (gene, index, niche, test): `gene, index, niche, test, estimate, se, t,
+        df, p, n_patients, p.heterogeneity` (R `p.heterogeneity`; NA for the sandwich
+        engine), `q` and `in_family`.
     condition : str or None
         The condition tested.
     contrast : str
-        E.g. ``"Responder - Non-responder"`` (second level minus first; ``""`` without a
+        E.g. `"Responder - Non-responder"` (second level minus first; `""` without a
         condition).
     procedure : str
         The condition test's family.
@@ -109,14 +109,14 @@ class SpiDEResults:
     fit: SpiDEFit
 
     def results(self, test: str | None = None, fdr: float | None = None) -> pd.DataFrame:
-        """The results table (R ``results``), ordered by p-value (missing last).
+        """The results table (R `results`), ordered by p-value (missing last).
 
         Parameters
         ----------
         test : {"condition", "pooled", "both"}, optional
             Which test's rows (default: the condition test if the table has one, else pooled).
         fdr : float, optional
-            Keep only the rows in a BH family with ``q <= fdr``.
+            Keep only the rows in a BH family with `q <= fdr`.
         """
         tb = self.table
         if test is None:
@@ -132,7 +132,7 @@ class SpiDEResults:
         return tb.reset_index(drop=True)
 
     def __repr__(self) -> str:
-        """R ``show``: one line per test, its size and the discoveries at the FDR."""
+        """R `show`: one line per test, its size and the discoveries at the FDR."""
         tb = self.table
         lines = [f"SpiDEResults ({self.fit.engine} engine)"]
         for tt in pd.unique(tb["test"]):

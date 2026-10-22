@@ -1,9 +1,9 @@
-"""The per-index negative binomial fit: one GLM per gene through spanormpy's ``polish_nb``.
+"""The per-index negative binomial fit: one GLM per gene through spanormpy's `polish_nb`.
 
-Ports ``R/fit-glm.R`` (``.glmStart``, ``.fitIndexGLM``, ``.fitStatus``, ``.workingWR``). Damped
+Ports `R/fit-glm.R` (`.glmStart`, `.fitIndexGLM`, `.fitStatus`, `.workingWR`). Damped
 Newton on each gene's own penalised likelihood with the patient intercepts absorbed by Schur
 complement and the dispersion by profile maximum likelihood. Genes are independent, so
-``n_jobs`` only schedules them; results do not depend on it.
+`n_jobs` only schedules them; results do not depend on it.
 """
 
 from __future__ import annotations
@@ -20,10 +20,10 @@ from ._design import _lin_pred
 
 
 def _glm_start(Yk, des: dict, offset=None) -> np.ndarray:
-    """A sane start per gene: each patient's log mean count (net of any offset) (``.glmStart``).
+    """A sane start per gene: each patient's log mean count (net of any offset) (`.glmStart`).
 
-    ``Yk`` is genes x index cells (dense or sparse; per-patient sums are a product with a sparse
-    indicator, so a sparse matrix is never densified). Returns genes x ``ncol(W)``.
+    `Yk` is genes x index cells (dense or sparse; per-patient sums are a product with a sparse
+    indicator, so a sparse matrix is never densified). Returns genes x `ncol(W)`.
     """
     codes = np.asarray(des["patient"], dtype=int)
     npat = des["npat"]
@@ -48,11 +48,11 @@ def _glm_start(Yk, des: dict, offset=None) -> np.ndarray:
 
 
 def _fit_index_glm(Yk, des: dict, offset=None, n_jobs: int = 1) -> dict:
-    """Fit one NB GLM per gene of one index type (``.fitIndexGLM``).
+    """Fit one NB GLM per gene of one index type (`.fitIndexGLM`).
 
-    Returns ``alpha`` (genes x ``ncol(W)``), ``psi``, ``loglik``, ``polish`` (spanormpy's
-    per-gene diagnostics) and ``status`` (``genes, not_fitted, psi_at_bound, runaway``). A gene
-    that could not be fitted has NaN ``alpha`` and ``psi``.
+    Returns `alpha` (genes x `ncol(W)`), `psi`, `loglik`, `polish` (spanormpy's
+    per-gene diagnostics) and `status` (`genes, not_fitted, psi_at_bound, runaway`). A gene
+    that could not be fitted has NaN `alpha` and `psi`.
     """
     a0 = _glm_start(Yk, des, offset)
     fit = polish_nb(
@@ -74,13 +74,13 @@ def _fit_index_glm(Yk, des: dict, offset=None, n_jobs: int = 1) -> dict:
 def _fit_status(
     fit: dict, Yk, des: dict, offset, n_jobs: int = 1, psi_range=(1e-3, 1e3), max_coef: float = 20
 ) -> dict:
-    """Drop what did not fit, settle bounded dispersions and count both (``.fitStatus``).
+    """Drop what did not fit, settle bounded dispersions and count both (`.fitStatus`).
 
-    A gene polish_nb could not fit (returned at its start with ``polished = False``, or
+    A gene polish_nb could not fit (returned at its start with `polished = False`, or
     non-finite) drops out (NaN). A gene whose dispersion optimum lies on the search bound takes
-    the bound its likelihood prefers (``dnbinom(size = 1 / psi, mu)`` at both) and its mean is
+    the bound its likelihood prefers (`dnbinom(size = 1 / psi, mu)` at both) and its mean is
     refitted at that dispersion. A fitted gene whose non-absorbed coefficients ran off
-    (``|coef| > max_coef``) also drops out. Counts are kept in ``status``.
+    (`|coef| > max_coef`) also drops out. Counts are kept in `status`.
     """
     pol = fit["polish"]
     alpha = np.array(fit["alpha"], dtype=float)
@@ -138,9 +138,9 @@ def _row(Y, g: int) -> np.ndarray:
 
 
 def _working_wr(y, W, alpha, psi, offset=0.0) -> dict:
-    """Working weights ``w = mu / (1 + psi mu)`` and residuals ``r = (y - mu) / (1 + psi mu)``.
+    """Working weights `w = mu / (1 + psi mu)` and residuals `r = (y - mu) / (1 + psi mu)`.
 
-    Port of ``.workingWR``; ``mu = exp(W alpha + offset)``.
+    Port of `.workingWR`; `mu = exp(W alpha + offset)`.
     """
     mu = np.exp(_lin_pred(W, alpha) + offset)
     d = 1.0 + psi * mu
@@ -148,14 +148,14 @@ def _working_wr(y, W, alpha, psi, offset=0.0) -> dict:
 
 
 def _bp_genes(G: int, fun, n_jobs: int = 1) -> list:
-    """Run ``fun`` over blocks of gene indices and return the block results in order (``.bpGenes``).
+    """Run `fun` over blocks of gene indices and return the block results in order (`.bpGenes`).
 
-    The ``G`` genes are cut into ``min(G, 4 * workers)`` contiguous blocks with R's
-    ``cut(seq_len(G), nch)`` boundaries (equal-width bins, empty ones dropped), so each worker gets
-    a few blocks rather than one task per gene. ``fun`` receives the 0-based indices of a block.
-    With ``n_jobs > 1`` blocks run on threads, and BLAS is held to one thread for the whole run
+    The `G` genes are cut into `min(G, 4 * workers)` contiguous blocks with R's
+    `cut(seq_len(G), nch)` boundaries (equal-width bins, empty ones dropped), so each worker gets
+    a few blocks rather than one task per gene. `fun` receives the 0-based indices of a block.
+    With `n_jobs > 1` blocks run on threads, and BLAS is held to one thread for the whole run
     (R pins one per worker; the limit is process-global, so it wraps the pool, not each block).
-    The result never depends on ``n_jobs``.
+    The result never depends on `n_jobs`.
     """
     nw = max(1, effective_n_jobs(n_jobs))
     chunks = _cut_blocks(G, min(G, nw * 4))
@@ -166,9 +166,9 @@ def _bp_genes(G: int, fun, n_jobs: int = 1) -> list:
 
 
 def _cut_blocks(G: int, nch: int) -> list[np.ndarray]:
-    """0-based blocks of ``range(G)`` as ``split(seq_len(G), cut(seq_len(G), nch, labels = FALSE))``.
+    """0-based blocks of `range(G)` as `split(seq_len(G), cut(seq_len(G), nch, labels = FALSE))`.
 
-    ``cut`` takes ``nch`` equal-width intervals over ``[1, G]`` (outer breaks widened by 0.1% of
+    `cut` takes `nch` equal-width intervals over `[1, G]` (outer breaks widened by 0.1% of
     the range, right-closed); a single block is built directly, as R does.
     """
     if nch <= 1 or G <= 1:
@@ -184,7 +184,7 @@ def _cut_blocks(G: int, nch: int) -> list[np.ndarray]:
 
 @contextmanager
 def _one_blas_thread():
-    """Limit BLAS to one thread inside the block when ``threadpoolctl`` is available."""
+    """Limit BLAS to one thread inside the block when `threadpoolctl` is available."""
     try:
         from threadpoolctl import threadpool_limits
     except ImportError:

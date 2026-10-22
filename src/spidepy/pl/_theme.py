@@ -1,10 +1,10 @@
-"""The spiDE plot theme and colours (``R/plot-theme.R``).
+"""The spiDE plot theme and colours (`R/plot-theme.R`).
 
 One colour per role, the same in every plot (palette "V"): gold / violet for the direction of a
 slope (and the diverging t scale), dark violet / pink for the first / second condition level, the
 viridis "magma" ramp for magnitudes (light to dark), a brighter part of it for tissue coordinates
-(dark to bright, on a dark panel) and the Okabe-Ito colours for a nuisance factor. :func:`style` approximates
-``theme_spiDE``: a black panel border, no grid, black ticks, boxed facet strips and italic legend
+(dark to bright, on a dark panel) and the Okabe-Ito colours for a nuisance factor. `style` approximates
+`theme_spiDE`: a black panel border, no grid, black ticks, boxed facet strips and italic legend
 titles. Matplotlib has no theme object, so the pieces a style context cannot carry (italic
 legend titles, boxed strips, facet layout) are small helpers here, shared by every plot.
 """
@@ -50,7 +50,7 @@ _R_GREYS = {
 
 
 def r_colour_hex(col: str) -> str:
-    """A colour as a hex string, reading R's ``greyNN`` names (``grey92`` -> ``#EBEBEB``)."""
+    """A colour as a hex string, reading R's `greyNN` names (`grey92` -> `#EBEBEB`)."""
     return _R_GREYS.get(col, col)
 
 
@@ -62,7 +62,7 @@ _WHITE_XY = (0.3137, 0.3291)  # R's "D65" (white.points), which is not the CIE D
 
 
 def _srgb_matrix() -> tuple[np.ndarray, np.ndarray]:
-    """R ``make.rgb``: the primaries' matrix ``M`` (row vector convention) and the white XYZ."""
+    """R `make.rgb`: the primaries' matrix `M` (row vector convention) and the white XYZ."""
     rgb = np.column_stack([_PRIMARIES, 1 - _PRIMARIES.sum(axis=1)])
     white = np.array([_WHITE_XY[0] / _WHITE_XY[1], 1.0, (1 - sum(_WHITE_XY)) / _WHITE_XY[1]])
     return (white @ np.linalg.inv(rgb) * rgb.T).T, white
@@ -101,14 +101,14 @@ def _lab_to_srgb(lab: np.ndarray) -> np.ndarray:
 
 
 def _hex(rgb: np.ndarray, truncate: bool = False) -> list[str]:
-    """Hex strings of 0-1 channels: rounded half up, or truncated as R ``rgb(maxColorValue = 255)``
+    """Hex strings of 0-1 channels: rounded half up, or truncated as R `rgb(maxColorValue = 255)`
     does with the ramp's already-trimmed values (so 91 / 255 reads back as 90)."""
     v = np.floor(np.asarray(rgb) * 255 + (0.0 if truncate else 0.5)).astype(int)
     return ["#{:02X}{:02X}{:02X}".format(*c) for c in v]
 
 
 def _color_ramp_lab(colors: list[str], n: int) -> list[str]:
-    """R ``colorRampPalette(colors, space = "Lab")(n)``: linear interpolation in CIE Lab."""
+    """R `colorRampPalette(colors, space = "Lab")(n)`: linear interpolation in CIE Lab."""
     lab = _srgb_to_lab(_col2rgb(colors))
     xs = np.linspace(0.0, 1.0, len(colors))
     at = np.linspace(0.0, 1.0, n)
@@ -124,7 +124,7 @@ _FARVER_RGB = np.array([[0.4124564, 0.3575761, 0.1804375],
 
 
 def _hue_pal(n: int, h=(15.0, 375.0), c: float = 100.0, l: float = 65.0) -> list[str]:
-    """``scales::hue_pal()(n)``: ``n`` evenly spaced hues of equal chroma and lightness."""
+    """`scales::hue_pal()(n)`: `n` evenly spaced hues of equal chroma and lightness."""
     h0, h1 = h
     if (h1 - h0) % 360 < 1:
         h1 -= 360 / n
@@ -147,9 +147,9 @@ def _hue_pal(n: int, h=(15.0, 375.0), c: float = 100.0, l: float = 65.0) -> list
 
 
 def _magnitude_ramp(n: int = 256, spatial: bool = False) -> list[str]:
-    """The magnitude ramp, light to dark (magma; R ``.magnitudeRamp``).
+    """The magnitude ramp, light to dark (magma; R `.magnitudeRamp`).
 
-    ``spatial=True`` gives the dark-panel ramp of tissue plots, dark to bright.
+    `spatial=True` gives the dark-panel ramp of tissue plots, dark to bright.
     """
     base = _MAGMA_SPATIAL if spatial else _MAGMA
     if n == len(base):
@@ -160,7 +160,7 @@ def _magnitude_ramp(n: int = 256, spatial: bool = False) -> list[str]:
 
 
 def spide_colours(role: str | None = None, n: int = 9):
-    """The spiDE colours (R ``spiDEColours``).
+    """The spiDE colours (R `spiDEColours`).
 
     spiDE gives each role one colour and uses it in every plot: gold and violet for a slope that
     rises or falls with niche density (and for the diverging t scale), dark violet and pink for
@@ -172,14 +172,14 @@ def spide_colours(role: str | None = None, n: int = 9):
     Parameters
     ----------
     role : {"direction", "condition", "magnitude", "spatial", "diverging", "nuisance"}, optional
-        ``None`` returns the named fixed colours.
+        `None` returns the named fixed colours.
     n : int
         The number of colours of a ramp, or of nuisance levels.
 
     Returns
     -------
     dict or list of str
-        ``{name: colour}`` for ``role=None``, else a list of colours (hex, or R's ``greyNN``
+        `{name: colour}` for `role=None`, else a list of colours (hex, or R's `greyNN`
         names for the fixed ones).
     """
     if role is None:
@@ -211,12 +211,12 @@ def spide_colours(role: str | None = None, n: int = 9):
 
 
 def _direction_colours() -> dict[str, str]:
-    """``{"up": gold, "down": violet}``."""
+    """`{"up": gold, "down": violet}`."""
     return {"up": _SPIDE_COLS["up"], "down": _SPIDE_COLS["down"]}
 
 
 def _condition_colours(levels) -> dict[str, str]:
-    """A colour per condition level: dark violet / pink for two levels, else black (``.scaleCondition``)."""
+    """A colour per condition level: dark violet / pink for two levels, else black (`.scaleCondition`)."""
     levels = [str(x) for x in levels]
     if len(levels) == 2:
         return dict(zip(levels, (_SPIDE_COLS["first"], _SPIDE_COLS["second"]), strict=True))
@@ -224,14 +224,14 @@ def _condition_colours(levels) -> dict[str, str]:
 
 
 def _magnitude_cmap(n: int = 256, spatial: bool = False, name: str = "spide_magnitude"):
-    """The magnitude ramp (or, ``spatial=True``, the tissue ramp) as a matplotlib colormap."""
+    """The magnitude ramp (or, `spatial=True`, the tissue ramp) as a matplotlib colormap."""
     return mpl.colors.ListedColormap(_magnitude_ramp(n, spatial), name=name)
 
 
 def _t_cmap_norm(limit: float):
-    """The diverging t scale: violet - near-white - gold, symmetric about 0 (``.scaleT``).
+    """The diverging t scale: violet - near-white - gold, symmetric about 0 (`.scaleT`).
 
-    Returns ``(cmap, norm)``; values beyond ``+-limit`` are squished onto the end colours.
+    Returns `(cmap, norm)`; values beyond `+-limit` are squished onto the end colours.
     """
     cmap = mpl.colors.LinearSegmentedColormap.from_list(
         "spide_t", [_SPIDE_COLS["down"], _SPIDE_COLS["mid"], _SPIDE_COLS["up"]], N=257
@@ -244,11 +244,11 @@ def _t_cmap_norm(limit: float):
 
 @contextmanager
 def style(rl: float = 1.1) -> Iterator[None]:
-    """A matplotlib style context approximating ``theme_spiDE`` (R ``theme_spiDE``).
+    """A matplotlib style context approximating `theme_spiDE` (R `theme_spiDE`).
 
     A black panel border (all four spines), no grid, black axis ticks, no top / right ticks,
-    text sizes scaled by ``rl`` against a base of 11 pt as ggplot2's ``theme_minimal`` does.
-    Use it as ``with spidepy.pl.style(): ...`` around your own plotting code. Boxed facet strips
+    text sizes scaled by `rl` against a base of 11 pt as ggplot2's `theme_minimal` does.
+    Use it as `with spidepy.pl.style(): ...` around your own plotting code. Boxed facet strips
     and italic legend titles are drawn by the spiDE plots themselves (matplotlib has no rcParams
     for them).
 
@@ -297,7 +297,7 @@ def style(rl: float = 1.1) -> Iterator[None]:
 
 
 def _style_legend(leg) -> None:
-    """Italic legend title (``legend.title = element_text(face = "italic")``)."""
+    """Italic legend title (`legend.title = element_text(face = "italic")`)."""
     if leg is not None and leg.get_title() is not None:
         leg.get_title().set_fontstyle("italic")
 
@@ -306,7 +306,7 @@ def _style_legend(leg) -> None:
 
 
 def _wrap_dims(n: int) -> tuple[int, int]:
-    """``(nrow, ncol)`` of ``facet_wrap`` for ``n`` panels (ggplot2 ``wrap_dims``)."""
+    """`(nrow, ncol)` of `facet_wrap` for `n` panels (ggplot2 `wrap_dims`)."""
     if n <= 3:
         n_a, n_b = n, 1
     elif n <= 6:
@@ -325,26 +325,26 @@ def _wrap_dims(n: int) -> tuple[int, int]:
 
 
 def _pm_string(x: str) -> str:
-    """Escape quotes and backslashes for an R plotmath string (R ``.pmString``)."""
+    """Escape quotes and backslashes for an R plotmath string (R `.pmString`)."""
     return re.sub(r'(["\\])', r"\\\1", str(x))
 
 
 def _it_gene(g: str) -> str:
-    """R's plotmath label of an italic gene name (``.itGene``), kept for parity with R's data."""
+    """R's plotmath label of an italic gene name (`.itGene`), kept for parity with R's data."""
     return f'italic("{_pm_string(g)}")'
 
 
 def _it_triplet(gene: str, index: str, niche: str) -> str:
-    """R's plotmath label ``italic(gene) "index | niche"`` (``.itTriplet``)."""
+    """R's plotmath label `italic(gene) "index | niche"` (`.itTriplet`)."""
     return f'italic("{_pm_string(gene)}")~~"{_pm_string(index)} | {_pm_string(niche)}"'
 
 
 def _mt_body(s: str) -> str:
-    """The characters of ``s`` as mathtext that renders them literally.
+    """The characters of `s` as mathtext that renders them literally.
 
-    Letters and digits pass through; a space is ``\\ ``; any other character is set in
-    ``\\text{}``, escaping the few that mathtext reads as markup (``$ \\ { } # % & _ ^``), so a
-    gene such as ``HLA-DR``, ``a_b``, ``a"b`` or ``a\\b`` renders as written (a bare ``-`` would
+    Letters and digits pass through; a space is `\\ `; any other character is set in
+    `\\text{}`, escaping the few that mathtext reads as markup (`$ \\ { } # % & _ ^`), so a
+    gene such as `HLA-DR`, `a_b`, `a"b` or `a\\b` renders as written (a bare `-` would
     become a spaced minus sign).
     """
     out = []
@@ -361,22 +361,22 @@ def _mt_body(s: str) -> str:
 
 
 def _mt_gene(g: str) -> str:
-    """An italic gene name as mathtext, the counterpart of :func:`_it_gene`."""
+    """An italic gene name as mathtext, the counterpart of `_it_gene`."""
     return "$\\mathit{" + _mt_body(g) + "}$"
 
 
 def _mt_triplet(gene: str, index: str, niche: str) -> str:
-    """Mathtext of :func:`_it_triplet`: an italic gene, two spaces, ``index | niche``."""
+    """Mathtext of `_it_triplet`: an italic gene, two spaces, `index | niche`."""
     return (
         "$\\mathit{" + _mt_body(gene) + "}\\ \\ \\mathrm{" + _mt_body(f"{index} | {niche}") + "}$"
     )
 
 
 def _fmt_q(q) -> np.ndarray:
-    """q-values as labels (R ``.fmtq``): ``2e-08`` below 1e-3, else two significant digits.
+    """q-values as labels (R `.fmtq`): `2e-08` below 1e-3, else two significant digits.
 
-    R's ``formatC(q, digits = 2, format = "g")`` pads a short result to three characters, so
-    ``q = 1`` reads ``"  1"``; kept (see ``docs/r-discrepancies.md``).
+    R's `formatC(q, digits = 2, format = "g")` pads a short result to three characters, so
+    `q = 1` reads `"  1"`; kept (see `docs/r-discrepancies.md`).
     """
     out = []
     for v in np.atleast_1d(np.asarray(q, dtype=float)):
@@ -396,14 +396,14 @@ _PT = 72.27 / 25.4
 
 
 def _point_area(size: float) -> float:
-    """``scatter`` area (pt^2) of a ggplot2 ``geom_point`` of this ``size``, stroke 0.5 included."""
+    """`scatter` area (pt^2) of a ggplot2 `geom_point` of this `size`, stroke 0.5 included."""
     return (size * _PT + 0.5 * 3.78 / 2) ** 2
 
 
 def _strip(ax, text: str, fontsize: float | None = None) -> None:
-    """A boxed facet strip above the panel (``strip.background = element_rect(colour = "black")``).
+    """A boxed facet strip above the panel (`strip.background = element_rect(colour = "black")`).
 
-    ``text`` may be mathtext. It is the axes' title, in a black-outlined box.
+    `text` may be mathtext. It is the axes' title, in a black-outlined box.
     """
     ax.set_title(
         text,
@@ -414,14 +414,14 @@ def _strip(ax, text: str, fontsize: float | None = None) -> None:
 
 
 def _thousands(v: float, _pos=None) -> str:
-    """Axis labels as ``scales::label_number(drop0trailing = TRUE, big.mark = ",")``."""
+    """Axis labels as `scales::label_number(drop0trailing = TRUE, big.mark = ",")`."""
     return f"{v:,.10g}"
 
 
 def _log10_axis(ax) -> None:
-    """A log10 y axis labelled with plain numbers (``scale_y_log10(labels = label_number(...))``).
+    """A log10 y axis labelled with plain numbers (`scale_y_log10(labels = label_number(...))`).
 
-    Labelled breaks are decades, thinned to ``1, 3`` or ``1, 2, 5`` multiples when the range
+    Labelled breaks are decades, thinned to `1, 3` or `1, 2, 5` multiples when the range
     spans few decades, so the axis never shows an unlabelled stretch.
     """
     ax.set_yscale("log")
@@ -443,12 +443,12 @@ def _blank_panel(ax) -> None:
 
 
 def _strwrap(text: str, width: int) -> str:
-    """Lines of fewer than ``width`` characters joined by newlines (R ``strwrap`` pasted with
-    ``"\\n"``).
+    """Lines of fewer than `width` characters joined by newlines (R `strwrap` pasted with
+    `"\\n"`).
 
     As in R, words are split on whitespace only (never at a hyphen), a word longer than a line is
-    kept whole, runs of spaces collapse, and a sentence end (a word ending in ``.``, ``?`` or
-    ``!``, optionally followed by quotes or brackets) that the text follows with two spaces keeps
+    kept whole, runs of spaces collapse, and a sentence end (a word ending in `.`, `?` or
+    `!`, optionally followed by quotes or brackets) that the text follows with two spaces keeps
     both.
     """
     tokens = re.split(r"[ \t\n]", str(text))
@@ -478,10 +478,10 @@ def _strwrap(text: str, width: int) -> str:
 
 
 def _stack_legends(fig, groups, x0: float, y_top: float = 0.9, gap: float = 0.03) -> None:
-    """Stack legends down the right of ``fig``, each below the previous one.
+    """Stack legends down the right of `fig`, each below the previous one.
 
-    ``groups`` is a list of ``(title, handles, labels)`` (a title may be ``None``); titles are
-    italic, as in ``theme_spiDE``. Needs a renderer on the figure (an Agg canvas) to measure.
+    `groups` is a list of `(title, handles, labels)` (a title may be `None`); titles are
+    italic, as in `theme_spiDE`. Needs a renderer on the figure (an Agg canvas) to measure.
     """
     y = y_top
     renderer = fig.canvas.get_renderer()

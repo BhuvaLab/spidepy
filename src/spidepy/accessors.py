@@ -1,4 +1,4 @@
-"""Accessors of a fit: each patient's niche slopes and intercepts (``R/accessors.R``)."""
+"""Accessors of a fit: each patient's niche slopes and intercepts (`R/accessors.R`)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from ._classes import SpiDEFit, SpiDEResults
 
 
 def _as_fit(obj) -> SpiDEFit:
-    """The fit of a ``SpiDEFit`` or a ``SpiDEResults``."""
+    """The fit of a `SpiDEFit` or a `SpiDEResults`."""
     if isinstance(obj, SpiDEResults):
         return obj.fit
     if not isinstance(obj, SpiDEFit):
@@ -25,7 +25,7 @@ def _as_list(x) -> list[str] | None:
 
 
 def _pick(labels, wanted) -> np.ndarray:
-    """Positions of ``labels`` that are in ``wanted`` (R ``which(x %in% wanted)``), all if None."""
+    """Positions of `labels` that are in `wanted` (R `which(x %in% wanted)`), all if None."""
     if wanted is None:
         return np.arange(len(labels))
     w = set(wanted)
@@ -35,10 +35,10 @@ def _pick(labels, wanted) -> np.ndarray:
 def _with_patients(
     d: pd.DataFrame, fit: SpiDEFit, keys: list[str], order: list[str]
 ) -> pd.DataFrame:
-    """Left-join the patient-level columns recorded by the fit, then order rows by ``keys``.
+    """Left-join the patient-level columns recorded by the fit, then order rows by `keys`.
 
-    R: ``merge(d, pt[, setdiff(colnames(pt), "ncells")], by = "patient", all.x = TRUE)`` and
-    ``d[order(order), c(keys, rest)]``. Strings compare in code-point order.
+    R: `merge(d, pt[, setdiff(colnames(pt), "ncells")], by = "patient", all.x = TRUE)` and
+    `d[order(order), c(keys, rest)]`. Strings compare in code-point order.
     """
     pt = fit.patients.drop(columns="ncells").set_index("patient", drop=False)
     extra = pt.drop(columns="patient").reindex(d["patient"].to_numpy()).reset_index(drop=True)
@@ -49,7 +49,7 @@ def _with_patients(
 
 
 def patient_slopes(obj, gene=None, index=None, niche=None) -> pd.DataFrame:
-    """Each patient's niche slopes in long form (R ``patientSlopes``).
+    """Each patient's niche slopes in long form (R `patientSlopes`).
 
     The slopes engine estimates every patient's own niche slopes (a one-step negative binomial
     estimate from the shared fit); this returns them with their variances, e.g. to plot how a
@@ -65,9 +65,9 @@ def patient_slopes(obj, gene=None, index=None, niche=None) -> pd.DataFrame:
     Returns
     -------
     pandas.DataFrame
-        ``gene, index, niche, patient, slope, var_spatial`` (the within-patient spatial
-        sandwich variance), ``var_model, ncells`` plus the patient-level columns recorded by
-        :func:`~spidepy.fit_spide`; ordered by index, gene, niche, patient.
+        `gene, index, niche, patient, slope, var_spatial` (the within-patient spatial
+        sandwich variance), `var_model, ncells` plus the patient-level columns recorded by
+        `fit_spide`; ordered by index, gene, niche, patient.
     """
     fit = _as_fit(obj)
     if fit.engine != "slopes":
@@ -110,12 +110,12 @@ def patient_slopes(obj, gene=None, index=None, niche=None) -> pd.DataFrame:
 
 
 def patient_intercepts(obj, gene=None, index=None) -> pd.DataFrame:
-    """Each patient's intercept per gene and index type, in long form (R ``patientIntercepts``).
+    """Each patient's intercept per gene and index type, in long form (R `patientIntercepts`).
 
     Every index type's shared fit has an intercept per patient and gene: the patient's
     expression level of the gene in that type, at zero niche density and a reference depth (the
-    index type's mean log library size under ``depth = "loglib"`` or ``"nonlinear"``, each
-    patient's own mean under ``"spatial_spline"``). The intercepts absorb every difference
+    index type's mean log library size under `depth = "loglib"` or `"nonlinear"`, each
+    patient's own mean under `"spatial_spline"`). The intercepts absorb every difference
     between patients, which is why the niche slopes are within-patient slopes.
 
     Parameters
@@ -127,9 +127,9 @@ def patient_intercepts(obj, gene=None, index=None) -> pd.DataFrame:
     Returns
     -------
     pandas.DataFrame
-        ``gene, index, patient, intercept`` (log scale), ``ncells`` (the patient's cells of
+        `gene, index, patient, intercept` (log scale), `ncells` (the patient's cells of
         the index type) plus the patient-level columns recorded by
-        :func:`~spidepy.fit_spide`; ordered by index, gene, patient.
+        `fit_spide`; ordered by index, gene, patient.
     """
     fit = _as_fit(obj)
     gene, index = _as_list(gene), _as_list(index)
@@ -165,6 +165,6 @@ def patient_intercepts(obj, gene=None, index=None) -> pd.DataFrame:
 
 
 def results(res: SpiDEResults, test: str | None = None, fdr: float | None = None) -> pd.DataFrame:
-    """Extract spiDE's test results (R ``results``); see :meth:`SpiDEResults.results`."""
+    """Extract spiDE's test results (R `results`); see `SpiDEResults.results`."""
     check_results(res, "results()")
     return res.results(test=test, fdr=fdr)

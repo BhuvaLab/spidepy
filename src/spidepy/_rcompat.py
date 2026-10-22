@@ -9,13 +9,13 @@ import numpy as np
 
 
 def r_num_str(x: float) -> str:
-    """Format a double as R's ``as.character()`` / ``paste0()`` does.
+    """Format a double as R's `as.character()` / `paste0()` does.
 
-    Ports R's number-to-string conversion at ``scipen = 0``: the value is written with the
+    Ports R's number-to-string conversion at `scipen = 0`: the value is written with the
     fewest significant digits (at most 15) that reproduce it to 15 digits, then fixed notation
-    is used unless scientific notation is strictly shorter (``1e+05``, ``1e-04``, ``1e+15``).
+    is used unless scientific notation is strictly shorter (`1e+05`, `1e-04`, `1e+15`).
     The 15-digit rounding only decides the notation and the number of decimals.
-    ``NaN``/``Inf``/``-Inf`` print as in R; a missing value (``None``) prints ``"NA"``.
+    `NaN`/`Inf`/`-Inf` print as in R; a missing value (`None`) prints `"NA"`.
     """
     if x is None:
         return "NA"
@@ -51,7 +51,7 @@ def r_num_str(x: float) -> str:
 
 
 def sanitise(x):
-    """Replace spaces and hyphens by ``.`` (R ``gsub(" |-", ".", x)``).
+    """Replace spaces and hyphens by `.` (R `gsub(" |-", ".", x)`).
 
     Accepts a string or an iterable of strings and returns the same kind.
     """
@@ -61,10 +61,10 @@ def sanitise(x):
 
 
 def p_adjust_bh(p) -> np.ndarray:
-    """Benjamini-Hochberg adjustment as R ``p.adjust(p, method = "BH")``.
+    """Benjamini-Hochberg adjustment as R `p.adjust(p, method = "BH")`.
 
-    ``NaN`` entries stay ``NaN`` and do not count towards ``n`` (R's ``na.rm``-style handling:
-    ``n`` is the number of non-missing p-values).
+    `NaN` entries stay `NaN` and do not count towards `n` (R's `na.rm`-style handling:
+    `n` is the number of non-missing p-values).
     """
     p = np.asarray(p, dtype=float)
     out = np.full(p.shape, np.nan)
@@ -83,12 +83,12 @@ def p_adjust_bh(p) -> np.ndarray:
 
 
 def r_sort_str(xs) -> list[str]:
-    """Sort strings as R ``sort()`` does under the C collation (code-point order).
+    """Sort strings as R `sort()` does under the C collation (code-point order).
 
-    R's ``sort()`` on character vectors uses the session locale (``en_US.UTF-8`` interleaves
-    ``a A b B``; ``C`` puts every capital first). Python ``sorted`` is code-point order, which
-    equals R's ``method = "radix"`` and ``LC_COLLATE=C``. The two agree for labels such as
-    ``S1, S10, S2`` and ``Non-responder, Responder`` (same case, no punctuation clashes); where
-    a locale would differ, see ``docs/r-discrepancies.md``.
+    R's `sort()` on character vectors uses the session locale (`en_US.UTF-8` interleaves
+    `a A b B`; `C` puts every capital first). Python `sorted` is code-point order, which
+    equals R's `method = "radix"` and `LC_COLLATE=C`. The two agree for labels such as
+    `S1, S10, S2` and `Non-responder, Responder` (same case, no punctuation clashes); where
+    a locale would differ, see `docs/r-discrepancies.md`.
     """
     return sorted(str(s) for s in xs)

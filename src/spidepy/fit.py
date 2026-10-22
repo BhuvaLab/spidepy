@@ -1,4 +1,4 @@
-"""``fit_spide``: the per-patient niche models of every index cell type (``R/fitSpiDE.R``).
+"""`fit_spide`: the per-patient niche models of every index cell type (`R/fitSpiDE.R`).
 
 For each index cell type, one negative binomial GLM per gene of its expression on the local
 density of every other (niche) cell type, with an intercept per patient so that each niche
@@ -59,7 +59,7 @@ _DEPTHS = ("loglib", "nonlinear", "spatial_spline", "none")
 
 
 def _match_arg(x, choices, what: str) -> str:
-    """R ``match.arg`` (exact matches only)."""
+    """R `match.arg` (exact matches only)."""
     if not isinstance(x, str) or x not in choices:
         raise ValueError(f"'{what}' should be one of {', '.join(repr(c) for c in choices)}")
     return x
@@ -90,62 +90,62 @@ def fit_spide(
     n_jobs: int = 1,
     verbose: bool = True,
 ) -> SpiDEFit:
-    """Fit spiDE's per-patient niche models (R ``fitSpiDE``).
+    """Fit spiDE's per-patient niche models (R `fitSpiDE`).
 
     Fits, for every index cell type, one negative binomial GLM per gene of its expression on
     the local density of every other (niche) cell type, with an intercept per patient so that
     each niche effect is a within-patient slope. The slopes are then tested across patients,
     pooled or between conditions.
 
-    Two engines estimate the between-patient error the tests need. ``"slopes"`` (default)
+    Two engines estimate the between-patient error the tests need. `"slopes"` (default)
     fits the shared model once, without the condition, then gives every patient a one-step NB
     estimate of its own niche slopes with a within-patient spatial sandwich variance; its fit
-    never sees the condition. ``"sandwich"`` fits the condition-specific model directly and
+    never sees the condition. `"sandwich"` fits the condition-specific model directly and
     tests its coefficients with a patient-clustered CR2 sandwich and Bell-McCaffrey degrees of
     freedom; it needs the condition at fit time.
 
     Parameters
     ----------
     adata : AnnData
-        Cells x genes with raw integer counts, ``obsm["spatial"]`` and the niche matrices of
-        :func:`~spidepy.niches.build_niches`.
+        Cells x genes with raw integer counts, `obsm["spatial"]` and the niche matrices of
+        `build_niches`.
     condition : str, optional
-        The ``obs`` column holding a two-level, patient-level condition. The slopes engine
+        The `obs` column holding a two-level, patient-level condition. The slopes engine
         only records it; the sandwich engine fits the condition-specific model only when it
         is given.
     engine : {"slopes", "sandwich"}
         The between-patient error engine.
     index : str or sequence of str, optional
-        Index cell types (default: every type with at least ``min_cells`` cells in at least
-        ``min_patients`` patients).
+        Index cell types (default: every type with at least `min_cells` cells in at least
+        `min_patients` patients).
     niche : str or sequence of str, optional
         Niche columns to test (default all); the others stay in the model as adjustments. An
-        index type is never tested against its own niche (see ``merge_niches``).
+        index type is never tested against its own niche (see `merge_niches`).
     sigma : float, optional
-        The niche bandwidth (needed only if ``adata`` carries several).
+        The niche bandwidth (needed only if `adata` carries several).
     cell_type, sample_id : str
-        The ``obs`` columns of the cell type and of the patient (the replicated unit).
+        The `obs` columns of the cell type and of the patient (the replicated unit).
     section : str, optional
-        The ``obs`` column of the tissue section (default ``sample_id``), used to lay the
+        The `obs` column of the tissue section (default `sample_id`), used to lay the
         spatial tiles of the variance estimate.
     covariates : sequence of str
-        Cell-level ``obs`` columns to adjust for (centred; patient-level ones are refused, the
+        Cell-level `obs` columns to adjust for (centred; patient-level ones are refused, the
         patient intercepts absorb them).
     depth : {"loglib", "nonlinear", "spatial_spline", "none"}
         How sequencing depth enters: the centred log library size as a covariate; a 3-df
         natural spline of it; a library-size spline within each patient that may vary over the
-        section; or not at all (e.g. when ``offset`` carries depth).
+        section; or not at all (e.g. when `offset` carries depth).
     offset : str, optional
         The name of a layer holding a log-scale offset per cell and gene, added to every
         linear predictor with its coefficient fixed at 1.
     strata : str, optional
-        A patient-level ``obs`` column (e.g. slide or batch) whose niche slopes are adjusted
+        A patient-level `obs` column (e.g. slide or batch) whose niche slopes are adjusted
         for in the condition test. Used by the sandwich engine's condition model here and by
         the slopes engine at test time; the pooled model never uses it.
     assay : str
-        The layer of raw integer counts (``X`` for ``"counts"`` when no such layer exists).
+        The layer of raw integer counts (`X` for `"counts"` when no such layer exists).
     name : str
-        The niche ``obsm`` prefix.
+        The niche `obsm` prefix.
     min_cells, min_patients : int
         Minimum cells of an index type a patient must contribute; minimum patients a type needs.
     min_detect : float
@@ -153,7 +153,7 @@ def fit_spide(
     genes : sequence of str, optional
         Genes to test (default every gene). Library size is always computed from every gene.
     tile : float, optional
-        Side of the square tiles of the spatial variance estimate (default 3 x ``sigma``).
+        Side of the square tiles of the spatial variance estimate (default 3 x `sigma`).
     min_tiles : int
         Minimum tiles a patient needs for its own spatial variance.
     n_jobs : int
@@ -364,7 +364,7 @@ def fit_spide(
 
 
 def _default_index(ct, smp, min_cells: int, min_patients: int) -> list[str]:
-    """Cell types with >= ``min_cells`` cells in >= ``min_patients`` patients, sorted."""
+    """Cell types with >= `min_cells` cells in >= `min_patients` patients, sorted."""
     df = pd.DataFrame({"ct": ct, "smp": smp}).dropna()
     n = df.groupby(["ct", "smp"], sort=False).size()
     npat = (n >= min_cells).groupby(level="ct").sum()
@@ -380,9 +380,9 @@ def _tile_codes(sec, xy, tile: float, ik) -> np.ndarray:
 
 
 def _condition_coding(patients: pd.DataFrame, condition: str) -> pd.Series:
-    """0/1 per patient for a two-level condition: 1 = the second level (``.conditionCoding``).
+    """0/1 per patient for a two-level condition: 1 = the second level (`.conditionCoding`).
 
-    Levels are the factor levels (a ``Categorical``), else the sorted values, so the contrast
+    Levels are the factor levels (a `Categorical`), else the sorted values, so the contrast
     is "second - first".
     """
     if condition not in patients.columns:
@@ -403,7 +403,7 @@ def _condition_coding(patients: pd.DataFrame, condition: str) -> pd.Series:
 
 
 def _strata_by_patient(patients: pd.DataFrame, strata: str) -> pd.Series:
-    """The strata label (R ``as.character``) of each patient, in patient order."""
+    """The strata label (R `as.character`) of each patient, in patient order."""
     if strata not in patients.columns:
         raise ValueError(f"strata column '{strata}' is not a patient-level column")
     return pd.Series(
@@ -412,11 +412,11 @@ def _strata_by_patient(patients: pd.DataFrame, strata: str) -> pd.Series:
 
 
 def _patient_levels(fit0: dict, des: dict, genes, L: pd.DataFrame, codes, ll) -> dict:
-    """What the plots read of each patient (``.patientLevels``).
+    """What the plots read of each patient (`.patientLevels`).
 
     Its intercept per gene in the shared, condition-free fit (the level every between-patient
-    difference is absorbed into; under ``depth = "spatial_spline"`` the intercept column of the
-    patient's block), the mean ``log1p`` density of each tested niche over its index cells, and
+    difference is absorbed into; under `depth = "spatial_spline"` the intercept column of the
+    patient's block), the mean `log1p` density of each tested niche over its index cells, and
     their mean log library size and their cell count.
     """
     pats = list(des["patients"])

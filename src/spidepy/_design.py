@@ -1,16 +1,16 @@
-"""Per-index-type design matrices and the covariate helpers of ``fitSpiDE``.
+"""Per-index-type design matrices and the covariate helpers of `fitSpiDE`.
 
-Ports ``R/fit-design.R`` (``.indexCells``, ``.nicheColumns``, ``.indexDesign``, ``.linPred``,
-``.denseX``, ``.patientBlocks``, ``.partialBlock``, ``.depthBlocks``) and, from
-``R/fitSpiDE.R``, ``.pickSigma``, ``.cellCovariates``, ``.indexCovariates``, ``.indexOffset``
-and ``.patientTable``.
+Ports `R/fit-design.R` (`.indexCells`, `.nicheColumns`, `.indexDesign`, `.linPred`,
+`.denseX`, `.patientBlocks`, `.partialBlock`, `.depthBlocks`) and, from
+`R/fitSpiDE.R`, `.pickSigma`, `.cellCovariates`, `.indexCovariates`, `.indexOffset`
+and `.patientTable`.
 
 Every index cell type is fitted on its own, with the design
-``[patient intercepts | covariates | niche log-densities | (condition x niche)]``. The design
-dict of :func:`_index_design` keeps R's list names (``W, patient, patients, npat, absorb, start,
-pen, dense, intercept_cols, Zs, tested, niche_cols, tested_niche``) with these differences:
-every index (``patient``, ``dense``, ``intercept_cols``, ``tested``, ``niche_cols``) is 0-based,
-and a ``colnames`` key holds R's ``colnames(W)`` (a dense ``W`` is a plain array here).
+`[patient intercepts | covariates | niche log-densities | (condition x niche)]`. The design
+dict of `_index_design` keeps R's list names (`W, patient, patients, npat, absorb, start,
+pen, dense, intercept_cols, Zs, tested, niche_cols, tested_niche`) with these differences:
+every index (`patient`, `dense`, `intercept_cols`, `tested`, `niche_cols`) is 0-based,
+and a `colnames` key holds R's `colnames(W)` (a dense `W` is a plain array here).
 """
 
 from __future__ import annotations
@@ -33,11 +33,11 @@ def _is_missing(v) -> bool:
 
 
 def _factor_codes(x) -> tuple[list[str], np.ndarray]:
-    """Levels and 0-based codes (-1 for missing) of R ``factor(x)``.
+    """Levels and 0-based codes (-1 for missing) of R `factor(x)`.
 
-    A ``Categorical`` keeps its category order (unused ones dropped); a numeric vector sorts
-    numerically (``factor(c(10, 9))`` has levels ``9, 10``) and is labelled as R prints it;
-    anything else sorts as strings (:func:`r_sort_str`). Vectorised: no per-element Python.
+    A `Categorical` keeps its category order (unused ones dropped); a numeric vector sorts
+    numerically (`factor(c(10, 9))` has levels `9, 10`) and is labelled as R prints it;
+    anything else sorts as strings (`r_sort_str`). Vectorised: no per-element Python.
     """
     if isinstance(x, pd.Categorical):
         codes = np.asarray(x.codes, dtype=int)
@@ -62,7 +62,7 @@ def _factor_codes(x) -> tuple[list[str], np.ndarray]:
 
 
 def _levels(x) -> list[str]:
-    """Levels of R ``factor(x)``: sorted unique non-missing labels (numbers sort numerically)."""
+    """Levels of R `factor(x)`: sorted unique non-missing labels (numbers sort numerically)."""
     return _factor_codes(x)[0]
 
 
@@ -70,9 +70,9 @@ def _levels(x) -> list[str]:
 # index cells and niche columns
 # --------------------------------------------------------------------------------------
 def _index_cells(ct, smp, k: str, min_cells: int) -> np.ndarray:
-    """0-based cells of index type ``k`` whose patient has >= ``min_cells`` of them (``.indexCells``).
+    """0-based cells of index type `k` whose patient has >= `min_cells` of them (`.indexCells`).
 
-    ``ct`` may hold missing values (cells left out of the fit); cell order is kept.
+    `ct` may hold missing values (cells left out of the fit); cell order is kept.
     """
     ct = pd.Series(np.asarray(ct, dtype=object))
     ik = np.flatnonzero((ct.notna() & (ct == k)).to_numpy())
@@ -86,11 +86,11 @@ def _index_cells(ct, smp, k: str, min_cells: int) -> np.ndarray:
 
 
 def _niche_columns(NM: pd.DataFrame, k: str, ik, niche=None, group_map=None) -> dict:
-    """Niche columns of index type ``k`` (``.nicheColumns``).
+    """Niche columns of index type `k` (`.nicheColumns`).
 
-    Every column that is not ``k``'s own niche (merge groups honoured) and has positive,
-    finite variance of ``log1p`` over the index cells; ``tested`` is ``cols`` or its
-    intersection with ``niche`` (in the order of ``cols``).
+    Every column that is not `k`'s own niche (merge groups honoured) and has positive,
+    finite variance of `log1p` over the index cells; `tested` is `cols` or its
+    intersection with `niche` (in the order of `cols`).
     """
     nm = [str(c) for c in NM.columns]
     self_ = _is_self_niche(k, nm, group_map)
@@ -105,11 +105,11 @@ def _niche_columns(NM: pd.DataFrame, k: str, ik, niche=None, group_map=None) -> 
 
 
 def _colvar(M: np.ndarray) -> np.ndarray:
-    """Column variances as R ``var``: a column holding NaN, or a single row, gives NaN.
+    """Column variances as R `var`: a column holding NaN, or a single row, gives NaN.
 
-    Accumulated in long double with a second pass for the mean, as R's ``cov`` does, so a column
+    Accumulated in long double with a second pass for the mean, as R's `cov` does, so a column
     of identical values has variance exactly 0 (a plain double mean can leave ~1e-33 and let a
-    constant niche column through the ``v > 0`` filter).
+    constant niche column through the `v > 0` filter).
     """
     n = M.shape[0]
     if n < 2:
@@ -134,34 +134,34 @@ def _index_design(
     tested=None,
     blocks: dict | None = None,
 ) -> dict:
-    """The design for one index type (``.indexDesign``).
+    """The design for one index type (`.indexDesign`).
 
     Parameters
     ----------
     L
-        index cells x niche columns (``log1p`` densities, tested columns first).
+        index cells x niche columns (`log1p` densities, tested columns first).
     cov
-        index cells x covariates (centred), or ``None``.
+        index cells x covariates (centred), or `None`.
     patient_codes, patient_levels
-        0-based patient code of each index cell and the patient labels (R ``factor``).
+        0-based patient code of each index cell and the patient labels (R `factor`).
     trt
-        ``None`` (the pooled model) or 0/1 per cell (the condition model, adding
-        ``condition:<niche>`` columns).
+        `None` (the pooled model) or 0/1 per cell (the condition model, adding
+        `condition:<niche>` columns).
     strata
-        ``None`` or a patient-level factor per cell, entered as ``strata:<level>:<niche>``
+        `None` or a patient-level factor per cell, entered as `strata:<level>:<niche>`
         nuisance columns (treatment coding, the first level dropped).
     tested
-        niche columns to test (default all of ``L``).
+        niche columns to test (default all of `L`).
     blocks
-        output of :func:`_depth_blocks` (``Zc``, ``Zs``): the within-patient library-size
+        output of `_depth_blocks` (`Zc`, `Zs`): the within-patient library-size
         spline, held as a compact block design.
 
     Returns
     -------
     dict
-        R's list (see the module docstring for the 0-based indices). ``dense`` and
-        ``intercept_cols`` index the columns of ``W``; for a block design ``W`` is an
-        ``NBBlockDesign`` and ``absorb`` is ``None``.
+        R's list (see the module docstring for the 0-based indices). `dense` and
+        `intercept_cols` index the columns of `W`; for a block design `W` is an
+        `NBBlockDesign` and `absorb` is `None`.
     """
     codes = np.asarray(patient_codes, dtype=int)
     levels = [str(x) for x in patient_levels]
@@ -239,7 +239,7 @@ def _index_design(
 
 
 def _match(x, table) -> np.ndarray:
-    """0-based first position of each ``x`` in ``table`` (R ``match``, an absent name is an error)."""
+    """0-based first position of each `x` in `table` (R `match`, an absent name is an error)."""
     pos = {}
     for i, t in enumerate(table):
         pos.setdefault(t, i)
@@ -250,7 +250,7 @@ def _match(x, table) -> np.ndarray:
 
 
 def _lin_pred(W, alpha) -> np.ndarray:
-    """Linear predictor ``W alpha`` of one gene, for a dense or compact block design (``.linPred``)."""
+    """Linear predictor `W alpha` of one gene, for a dense or compact block design (`.linPred`)."""
     alpha = np.asarray(alpha, dtype=float)
     if isinstance(W, NBBlockDesign):
         X = W.X.cpu().numpy()
@@ -262,7 +262,7 @@ def _lin_pred(W, alpha) -> np.ndarray:
 
 
 def _dense_x(des: dict) -> np.ndarray:
-    """The non-absorbed (dense) columns of the design (``.denseX``)."""
+    """The non-absorbed (dense) columns of the design (`.denseX`)."""
     if isinstance(des["W"], NBBlockDesign):
         return des["W"].X.cpu().numpy()
     return des["W"][:, des["dense"]]
@@ -276,10 +276,10 @@ def _patient_blocks(des: dict, rows_of) -> list[np.ndarray]:
 
 
 def _partial_block(X, w, Z):
-    """``X`` residualised on a patient's block ``Z`` with weights ``w`` (``.partialBlock``).
+    """`X` residualised on a patient's block `Z` with weights `w` (`.partialBlock`).
 
-    Frisch-Waugh-Lovell: ``X - Z (Z'WZ)^-1 Z'WX``; with ``Z`` the intercept alone this is
-    weighted centring within the patient. ``None`` if the block is singular (R ``solve`` fails
+    Frisch-Waugh-Lovell: `X - Z (Z'WZ)^-1 Z'WX`; with `Z` the intercept alone this is
+    weighted centring within the patient. `None` if the block is singular (R `solve` fails
     when the reciprocal condition number is below machine epsilon).
     """
     X = np.asarray(X, dtype=float)
@@ -301,17 +301,17 @@ def _partial_block(X, w, Z):
 
 
 def _depth_blocks(ell, xy_all, sec_all, ik, patient_codes, patient_levels, L: pd.DataFrame) -> dict:
-    """The within-patient library-size spline of ``depth = "spatial_spline"`` (``.depthBlocks``).
+    """The within-patient library-size spline of `depth = "spatial_spline"` (`.depthBlocks`).
 
-    For each section of each patient, the columns ``[l, l * B]`` over that section's index
-    cells: ``l`` the log library size centred within (section, index type) and ``B`` the
-    section's centred natural-spline tensor basis of position (spanormpy ``tps_basis`` on the
-    whole section's coordinates). The basis has ``df x df`` columns, ``df = 3`` for a section
-    with >= 200 index cells, 2 with >= 100 and none (``l`` alone) below.
+    For each section of each patient, the columns `[l, l * B]` over that section's index
+    cells: `l` the log library size centred within (section, index type) and `B` the
+    section's centred natural-spline tensor basis of position (spanormpy `tps_basis` on the
+    whole section's coordinates). The basis has `df x df` columns, `df = 3` for a section
+    with >= 200 index cells, 2 with >= 100 and none (`l` alone) below.
 
-    Returns ``Zs`` (per patient: ``[1 | its sections' columns]`` over its cells), ``Zc`` (a
-    DataFrame, every cell's row of its patient's ``Zs`` zero-padded to the widest patient) and
-    ``r2`` (patients x niche columns: R^2 of each niche column on the patient's block).
+    Returns `Zs` (per patient: `[1 | its sections' columns]` over its cells), `Zc` (a
+    DataFrame, every cell's row of its patient's `Zs` zero-padded to the widest patient) and
+    `r2` (patients x niche columns: R^2 of each niche column on the patient's block).
     """
     ell = np.asarray(ell, dtype=float)
     if not np.all(np.isfinite(ell)):
@@ -368,7 +368,7 @@ def _depth_blocks(ell, xy_all, sec_all, ik, patient_codes, patient_levels, L: pd
 # helpers of fitSpiDE
 # --------------------------------------------------------------------------------------
 def _as_numeric(x: str) -> float:
-    """R ``suppressWarnings(as.numeric(x))`` of a digits-and-dots string: NaN when unparseable."""
+    """R `suppressWarnings(as.numeric(x))` of a digits-and-dots string: NaN when unparseable."""
     try:
         return float(x)
     except ValueError:
@@ -376,7 +376,7 @@ def _as_numeric(x: str) -> float:
 
 
 def _pick_sigma(adata, sigma, name: str) -> float:
-    """The niche bandwidth: the only one present, or the one asked for (``.pickSigma``)."""
+    """The niche bandwidth: the only one present, or the one asked for (`.pickSigma`)."""
     keys = niche_keys(adata, name)
     have = [_as_numeric(k[len(name) :]) for k in keys]
     if not have:
@@ -395,7 +395,7 @@ def _pick_sigma(adata, sigma, name: str) -> float:
 
 
 def _numeric_column(x) -> np.ndarray:
-    """R ``as.numeric`` of one obs column (a factor gives its 1-based codes)."""
+    """R `as.numeric` of one obs column (a factor gives its 1-based codes)."""
     if isinstance(x.dtype, pd.CategoricalDtype):
         c = x.cat.codes.to_numpy(dtype=float) + 1
         c[c == 0] = np.nan
@@ -404,10 +404,10 @@ def _numeric_column(x) -> np.ndarray:
 
 
 def _cell_covariates(cd: pd.DataFrame, covariates, depth: str, Y) -> pd.DataFrame:
-    """Cell-level covariates over all cells: ``loglib`` (unless depth is "none") and user ones.
+    """Cell-level covariates over all cells: `loglib` (unless depth is "none") and user ones.
 
-    Port of ``.cellCovariates``; ``Y`` is genes x cells. A cell with no counts has a missing
-    (NaN) ``loglib``. A table with no columns has ``len(cd)`` rows.
+    Port of `.cellCovariates`; `Y` is genes x cells. A cell with no counts has a missing
+    (NaN) `loglib`. A table with no columns has `len(cd)` rows.
     """
     cols: dict[str, np.ndarray] = {}
     if depth != "none":
@@ -422,11 +422,11 @@ def _cell_covariates(cd: pd.DataFrame, covariates, depth: str, Y) -> pd.DataFram
 
 
 def _index_covariates(covk: pd.DataFrame, depth: str) -> pd.DataFrame | None:
-    """The index type's covariates, centred over its cells (``.indexCovariates``).
+    """The index type's covariates, centred over its cells (`.indexCovariates`).
 
-    Under ``depth = "nonlinear"`` the log library size becomes a 3-df natural cubic spline
-    (``splines::ns(x, df = 3)``, knots at this index type's quantiles); under
-    ``"spatial_spline"`` it is dropped (depth enters through the blocks). ``None`` if nothing
+    Under `depth = "nonlinear"` the log library size becomes a 3-df natural cubic spline
+    (`splines::ns(x, df = 3)`, knots at this index type's quantiles); under
+    `"spatial_spline"` it is dropped (depth enters through the blocks). `None` if nothing
     is left.
     """
     if covk.shape[1] == 0:
@@ -447,9 +447,9 @@ def _index_covariates(covk: pd.DataFrame, depth: str) -> pd.DataFrame | None:
 
 
 def _index_offset(adata, offset: str, gk, ik) -> np.ndarray:
-    """The offset of one index type: genes x index cells, dense (``.indexOffset``).
+    """The offset of one index type: genes x index cells, dense (`.indexOffset`).
 
-    ``offset`` names a layer of ``adata`` (cells x genes); ``gk`` are gene names and ``ik``
+    `offset` names a layer of `adata` (cells x genes); `gk` are gene names and `ik`
     0-based cell positions.
     """
     M = adata.layers[offset]
@@ -470,8 +470,8 @@ def _index_offset(adata, offset: str, gk, ik) -> np.ndarray:
 def _patient_table(cd: pd.DataFrame, smp) -> pd.DataFrame:
     """One row per patient: id, cell count and every obs column constant within patients.
 
-    Port of ``.patientTable``. A column counts as constant when each patient has at most one
-    distinct non-missing value (compared as R ``as.character``); the patient's value is its
+    Port of `.patientTable`. A column counts as constant when each patient has at most one
+    distinct non-missing value (compared as R `as.character`); the patient's value is its
     first cell's (so a missing first cell gives a missing value, as in R).
     """
     raw, uniq = pd.factorize(

@@ -1,4 +1,4 @@
-"""The niche views (``R/plot-niche.R``): the niche covariate in tissue, and the index cells'
+"""The niche views (`R/plot-niche.R`): the niche covariate in tissue, and the index cells'
 expression against it."""
 
 from __future__ import annotations
@@ -55,10 +55,10 @@ def _niche_map_data(
     section=None,
     name: str = "Niche",
 ) -> pd.DataFrame:
-    """One sample's cells for :func:`plot_niche_map` (the data of R's ``plotNicheMap`` ggplot).
+    """One sample's cells for `plot_niche_map` (the data of R's `plotNicheMap` ggplot).
 
-    One row per cell of the sample: ``x``, ``y`` (from each section's own origin), ``cell_type``,
-    ``density`` (log1p of the niche column), ``section`` and ``focal`` (coloured).
+    One row per cell of the sample: `x`, `y` (from each section's own origin), `cell_type`,
+    `density` (log1p of the niche column), `section` and `focal` (coloured).
     """
     check_adata(adata, cell_type=cell_type, sample_id=sample_id)
     check_column(adata, section, "section")
@@ -95,9 +95,9 @@ def _niche_map_data(
 
 
 def _scale_bar(d: pd.DataFrame, unit) -> pd.DataFrame:
-    """A scale bar of about a fifth of the width, under the bottom-right corner (R ``.scaleBar``).
+    """A scale bar of about a fifth of the width, under the bottom-right corner (R `.scaleBar`).
 
-    One row: ``x``, ``xend``, ``y`` (below the cells) and ``label``.
+    One row: `x`, `xend`, `y` (below the cells) and `label`.
     """
     xr = (d["x"].min(), d["x"].max())
     yr = (d["y"].min(), d["y"].max())
@@ -127,10 +127,10 @@ def plot_niche_map(
     scale_bar: bool = True,
     unit=None,
 ) -> Figure:
-    """The niche covariate in tissue (R ``plotNicheMap``).
+    """The niche covariate in tissue (R `plotNicheMap`).
 
     One sample's cells, coloured by the log1p density of a niche type: the covariate spiDE
-    regresses on. With ``index``, only the index type's cells are coloured (the covariate as the
+    regresses on. With `index`, only the index type's cells are coloured (the covariate as the
     index type's model reads it) and the others are dim. The panel is dark (the sticker's ink) so
     that the lowest densities stay visible; the colour bar, titles and axes keep the page's style.
 
@@ -141,27 +141,27 @@ def plot_niche_map(
     Parameters
     ----------
     adata : anndata.AnnData
-        With niche matrices in ``obsm`` (:func:`~spidepy.build_niches`).
+        With niche matrices in `obsm` (`build_niches`).
     niche : str
-        A niche column (a cell type or a :func:`~spidepy.merge_niches` group).
+        A niche column (a cell type or a `merge_niches` group).
     sample : str
         The sample (patient) to show.
     index : str, optional
         An index cell type to highlight.
     sigma : float, optional
-        The bandwidth (needed only if ``adata`` carries several).
+        The bandwidth (needed only if `adata` carries several).
     cell_type, sample_id : str
-        The ``obs`` columns of cell type and sample.
+        The `obs` columns of cell type and sample.
     section : str, optional
-        The ``obs`` column of the section; a sample with several sections gets one panel each.
+        The `obs` column of the section; a sample with several sections gets one panel each.
     name : str
-        The niche ``obsm`` prefix.
+        The niche `obsm` prefix.
     point_size : float, optional
         The point size in ggplot2 units (default: from the number of cells).
     scale_bar : bool
         Draw a scale bar of about a fifth of the width.
     unit : str, optional
-        The coordinates' unit, for the scale bar's label (e.g. ``"um"``).
+        The coordinates' unit, for the scale bar's label (e.g. `"um"`).
 
     Returns
     -------
@@ -239,10 +239,10 @@ def plot_niche_map(
 
 def _intercept_at_own_depth(fit) -> bool:
     """Whether the patient intercepts sit at each patient's own mean depth (R
-    ``.interceptAtOwnDepth``).
+    `.interceptAtOwnDepth`).
 
-    True under ``depth = "spatial_spline"`` (log depth centred per section) and under ``"none"``
-    with no offset or covariates (no depth term). Under ``"loglib"`` and ``"nonlinear"`` the depth
+    True under `depth = "spatial_spline"` (log depth centred per section) and under `"none"`
+    with no offset or covariates (no depth term). Under `"loglib"` and `"nonlinear"` the depth
     covariate is centred over the index type, a reference shared by every patient.
     """
     p = fit.params
@@ -252,12 +252,12 @@ def _intercept_at_own_depth(fit) -> bool:
 
 
 def _response_slopes(fit, xi: dict, niche: str):
-    """The slopes drawn by :func:`plot_niche_response` (R ``.responseSlopes``).
+    """The slopes drawn by `plot_niche_response` (R `.responseSlopes`).
 
     Each patient's own slope and each group's weighted mean (the slopes engine's pooled-test
     weights), or, under the sandwich engine, the pooled slope for every patient and group.
-    Returns ``(patient, group)``: ``patient(g, pats)`` the slopes of these patients (matched by
-    name; missing patients are NaN), ``group(g, pats)`` the weighted mean slope of the patients.
+    Returns `(patient, group)`: `patient(g, pats)` the slopes of these patients (matched by
+    name; missing patients are NaN), `group(g, pats)` the weighted mean slope of the patients.
     """
     if fit.engine == "slopes":
         j = list(xi["niches"]).index(niche)
@@ -297,20 +297,20 @@ def _response_slopes(fit, xi: dict, niche: str):
 
 
 def _cut_codes(v: np.ndarray, br: np.ndarray) -> np.ndarray:
-    """R ``cut(v, br, include.lowest = TRUE, labels = FALSE)``: the bin (1-based) of each value;
-    bins are ``[b0, b1], (b1, b2], ...``."""
+    """R `cut(v, br, include.lowest = TRUE, labels = FALSE)`: the bin (1-based) of each value;
+    bins are `[b0, b1], (b1, b2], ...`."""
     return np.maximum(np.searchsorted(br, v, side="left"), 1)
 
 
 def _bins_of(v: np.ndarray, n: int) -> np.ndarray:
-    """Bins of ``n`` quantile bands of ``v`` (R ``unique(quantile(v, seq(0, 1, length = n + 1)))``
-    then ``cut``); one bin if the quantiles collapse."""
+    """Bins of `n` quantile bands of `v` (R `unique(quantile(v, seq(0, 1, length = n + 1)))`
+    then `cut`); one bin if the quantiles collapse."""
     br = np.unique(np.quantile(v, np.linspace(0, 1, n + 1)))
     return np.ones(len(v), dtype=int) if len(br) < 2 else _cut_codes(v, br)
 
 
 def _aggregate_mean(df: pd.DataFrame, by: list[str]) -> pd.DataFrame:
-    """R ``aggregate(cbind(expr, density) ~ by, data, mean)``: rows with a missing value are
+    """R `aggregate(cbind(expr, density) ~ by, data, mean)`: rows with a missing value are
     dropped, groups sorted by the grouping variables with the *last* varying slowest."""
     df = df.dropna(subset=["expr", "density"])
     g = df.groupby(by[::-1], sort=True)[["expr", "density"]].mean().reset_index()
@@ -321,14 +321,14 @@ def _niche_response_data(
     adata, x, gene, index, niche, adjust: bool = True, bins: int = 8, assay: str = "counts",
     name: str = "Niche",
 ) -> dict:  # fmt: skip
-    """The data behind :func:`plot_niche_response` (R ``plotNicheResponse``'s ggplot layers).
+    """The data behind `plot_niche_response` (R `plotNicheResponse`'s ggplot layers).
 
-    Returns a dict: ``data`` (R's ``p$data``: one row per (gene, patient, bin) with ``patient``,
-    ``bin``, ``expr`` (mean CP10k), ``density`` (mean log1p density), ``gene``, ``condition`` and
-    ``gene_lab``); with ``adjust`` also ``summary`` (the mean across patients per group and bin
-    with its 95% interval) and ``lines`` (each group's fitted slope), else ``centroids`` (each
-    patient's mean and its within-patient segment); ``genes`` (the plotted genes), ``levels`` (the
-    groups, in contrast order) and ``labels`` (plotmath label by gene).
+    Returns a dict: `data` (R's `p$data`: one row per (gene, patient, bin) with `patient`,
+    `bin`, `expr` (mean CP10k), `density` (mean log1p density), `gene`, `condition` and
+    `gene_lab`); with `adjust` also `summary` (the mean across patients per group and bin
+    with its 95% interval) and `lines` (each group's fitted slope), else `centroids` (each
+    patient's mean and its within-patient segment); `genes` (the plotted genes), `levels` (the
+    groups, in contrast order) and `labels` (plotmath label by gene).
     """
     check_results(x, "plot_niche_response()", fit_ok=True)
     is_res = isinstance(x, SpiDEResults)
@@ -481,18 +481,18 @@ def plot_niche_response(
     adata, res, gene, index, niche, adjust: bool = True, bins: int = 8, assay: str = "counts",
     name: str = "Niche",
 ) -> Figure:  # fmt: skip
-    """Expression against niche density: the cells behind a slope (R ``plotNicheResponse``).
+    """Expression against niche density: the cells behind a slope (R `plotNicheResponse`).
 
     The index type's cells' expression of each gene (counts per 10,000, log axis) against the
     log1p density of the niche type, binned, one panel per gene.
 
-    With ``adjust=True`` (the default) each cell's expression is divided by its patient's fitted
+    With `adjust=True` (the default) each cell's expression is divided by its patient's fitted
     intercept, so the patients share one reference level and overlay: faint points are each
     patient's mean in a density bin, points and bars the mean across patients and its 95%
     interval, per condition, and the dashed line each group's fitted slope. This is what the
-    tests compare. With ``adjust=False`` the data are raw: each patient's own slope is a segment
+    tests compare. With `adjust=False` the data are raw: each patient's own slope is a segment
     through its mean (open circle), and the dashed line through the patients' means is the
-    between-patient association that the intercepts absorb (:func:`~spidepy.test_niche_abundance`'s
+    between-patient association that the intercepts absorb (`test_niche_abundance`'s
     question), not a niche slope.
 
     Read it for the data behind a slope, whether the log1p scale is roughly linear, and whether a
@@ -504,7 +504,7 @@ def plot_niche_response(
     adata : anndata.AnnData
         The object the fit was made from.
     res : SpiDEResults or SpiDEFit
-        ``adjust=True`` needs a fit that kept the patient intercepts. Under the sandwich engine
+        `adjust=True` needs a fit that kept the patient intercepts. Under the sandwich engine
         every patient's and group's line has the pooled slope.
     gene : str or sequence of str
         One or more genes, one panel each.
@@ -513,12 +513,12 @@ def plot_niche_response(
     adjust : bool
         Divide out each patient's intercept (see above).
     bins : int
-        The number of density bins (``adjust=True``; bins are quantiles over all patients). Raw
+        The number of density bins (`adjust=True`; bins are quantiles over all patients). Raw
         data use fifths of each patient's own density range.
     assay : str
         The counts assay.
     name : str
-        The niche ``obsm`` prefix.
+        The niche `obsm` prefix.
 
     Returns
     -------
