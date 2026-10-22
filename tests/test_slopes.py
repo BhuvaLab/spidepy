@@ -48,12 +48,13 @@ def _r_fit(D, cfg):
     return {"alpha": np.asarray(D[cfg]["alpha"]), "psi": np.asarray(D[cfg]["psi"])}
 
 
-def _compare(got, ref, rtol, atol=1e-12):
+def _compare(got, ref, rtol, atol=1e-12, rtol_tile=None):
     for k in ("beta", "v_tile", "v_model"):
         r = np.asarray(ref[k])
         assert got[k].shape == r.shape
         np.testing.assert_array_equal(np.isnan(got[k]), np.isnan(r), err_msg=k)  # NA pattern exact
-        np.testing.assert_allclose(got[k], r, rtol=rtol, atol=atol, equal_nan=True, err_msg=k)
+        rt = rtol_tile if k == "v_tile" and rtol_tile is not None else rtol
+        np.testing.assert_allclose(got[k], r, rtol=rt, atol=atol, equal_nan=True, err_msg=k)
     np.testing.assert_allclose(got["pooled"], ref["pooled"], rtol=rtol, atol=atol, equal_nan=True)
     assert got["patients"] == strs(ref["patients"])
     assert got["niches"] == strs(ref["niches"])
@@ -67,7 +68,9 @@ def test_patient_slopes_match_r_given_r_fit(S, D, cfg, scen):
     Yk = np.asarray(D["fit_inputs"]["Yk"])
     ps = _patient_slopes(_r_fit(D, cfg), des, Yk, L, tiles, offset=off, **kw)
     ref = S[scen][cfg]
-    _compare(ps, ref, rtol=1e-10)
+    # v_tile at 1e-8: in c3 a 1-ulp jitter of alpha moves one tile variance by 3e-10 (centred tile
+    # scores that nearly cancel), and a CI runner's BLAS moved it by 1.8e-10. The rest stays 1e-10.
+    _compare(ps, ref, rtol=1e-10, rtol_tile=1e-8)
     np.testing.assert_allclose(
         _patient_factor(ps["v_tile"], ps["v_model"]), ref["factor"], rtol=1e-10, atol=1e-12
     )
