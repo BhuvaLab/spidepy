@@ -132,15 +132,19 @@ def test_map_figure_colours_one_samples_cells(spe, tmp_path):
     assert (tmp_path / "niche_map.png").stat().st_size > 1000
 
 
-def test_map_with_index_greys_the_other_cells_and_draws_the_scale_bar(spe, tmp_path):
+def test_map_with_index_dims_the_other_cells_and_draws_the_scale_bar(spe, tmp_path):
     fig = pl.plot_niche_map(spe, niche="B", sample="S1", index="A", unit="µm")
     ax = panels(fig)[0]
     is_s1 = (spe.obs["sample_id"] == "S1").to_numpy()
     n_a = (is_s1 & (spe.obs["cell_type"] == "A").to_numpy()).sum()
     sizes = [len(c.get_offsets()) for c in ax.collections]
     assert sizes == [is_s1.sum() - n_a, n_a]  # grey first, the index type's cells on top
-    grey = ax.collections[0].get_facecolor()[0][:3]
-    assert tuple(np.round(grey, 3)) == tuple(np.round(matplotlib.colors.to_rgb("#EBEBEB"), 3))
+    dim = ax.collections[0].get_facecolor()[0][:3]
+    assert tuple(np.round(dim, 3)) == tuple(np.round(matplotlib.colors.to_rgb("#3B3158"), 3))
+    # the panel is dark (the sticker's ink); the scale bar and its label are white
+    assert matplotlib.colors.to_hex(ax.get_facecolor()) == "#140b2e"
+    assert matplotlib.colors.to_hex(ax.lines[0].get_color()) == "#ffffff"
+    assert matplotlib.colors.to_hex(ax.texts[0].get_color()) == "#ffffff"
     labels = [t.get_text() for t in ax.texts]
     assert labels and labels[0].endswith(" µm") and labels[0].split()[0].isdigit()
     # the scale bar's label sits below the bar: the panel must leave room for it
@@ -233,9 +237,7 @@ def test_response_joins_conditions_by_patient_name_not_position(R, spe, res):
     shuffled = res.fit.patients.sample(frac=1, random_state=3).reset_index(drop=True)
     f2 = type(res.fit)(res.fit.engine, res.fit.sigma, res.fit.condition, shuffled, res.fit.index,
                        res.fit.params)  # fmt: skip
-    r2 = type(res)(
-        res.table, res.condition, res.contrast, res.procedure, res.fdr, res.pooled_df, f2
-    )
+    r2 = type(res)(res.table, res.condition, res.contrast, res.procedure, res.fdr, f2)
     again = N._niche_response_data(spe, r2, "G1", "A", "B")["data"]
     pd.testing.assert_frame_equal(base.reset_index(drop=True), again.reset_index(drop=True))
     truth = res.fit.patients.set_index("patient")["condition"]

@@ -20,6 +20,7 @@ from spidepy._test_slopes import _dl_tau2  # noqa: E402
 from spidepy.pl import _helpers as H  # noqa: E402
 from spidepy.pl import _theme as T  # noqa: E402
 from spidepy.pl import spide_colours, style  # noqa: E402
+from spidepy.pl._patients import _break_label  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -47,15 +48,27 @@ def res(R):
 
 def test_fixed_colours_are_rs_in_rs_order(R):
     got = spide_colours()
-    assert list(got) == ["up", "down", "first", "second", "mid", "faint", "light", "grey"]
+    assert list(got) == [
+        "up",
+        "down",
+        "first",
+        "second",
+        "mid",
+        "faint",
+        "light",
+        "grey",
+        "ink",
+        "dim",
+    ]
     assert list(got.values()) == strs(R["cols"]["fixed"])
-    assert spide_colours("direction") == ["#B8791A", "#5B4B9A"] == strs(R["cols"]["direction"])
-    assert spide_colours("condition") == ["#0A9396", "#AE2012"] == strs(R["cols"]["condition"])
+    assert spide_colours("direction") == ["#C99A16", "#5B2C9E"] == strs(R["cols"]["direction"])
+    assert spide_colours("condition") == ["#3E1A78", "#E05A9E"] == strs(R["cols"]["condition"])
 
 
 @pytest.mark.parametrize("n", [1, 2, 5, 9, 11, 20])
 def test_ramps_equal_rs_hex_values(R, n):
     assert spide_colours("magnitude", n) == strs(R["cols"][f"magnitude{n}"])
+    assert spide_colours("spatial", n) == strs(R["cols"][f"spatial{n}"])
     assert spide_colours("diverging", n) == strs(R["cols"][f"diverging{n}"])
 
 
@@ -66,9 +79,30 @@ def test_nuisance_is_okabe_ito_then_the_hue_wheel(R, n):
     assert len(got) == n
 
 
-def test_internal_ramp_with_skip_equals_r(R):
-    assert T._magnitude_ramp(256, skip=0.1) == strs(R["cols"]["ramp256_skip"])
-    assert T._magnitude_ramp(7, skip=0.3) == strs(R["cols"]["ramp7_skip"])
+def test_internal_ramps_equal_r(R):
+    assert T._magnitude_ramp(256) == strs(R["cols"]["ramp256"])
+    assert T._magnitude_ramp(256, spatial=True) == strs(R["cols"]["ramp256_spatial"])
+    assert T._magnitude_ramp(12) == strs(R["cols"]["ramp12"]) == T._MAGMA
+    assert T._magnitude_ramp(7, spatial=True) == strs(R["cols"]["ramp7_spatial"])
+    # zero reads as empty: the magnitude ramp starts near white
+    assert T._magnitude_ramp(12)[0] == "#FDFAF4"
+    assert spide_colours("spatial", 11) == T._MAGMA_SPATIAL
+
+
+def test_break_label_equals_r(R):
+    got = [_break_label(x) for x in strs(R["cols"]["break_in"])]
+    assert got == strs(R["cols"]["break_out"])
+    assert _break_label("Non-responder") == "Non-\nresponder"
+    assert _break_label("Late stage group") == "Late\nstage group"
+    assert _break_label("Responder") == "Responder"
+
+
+def test_spatial_ramp_runs_dark_to_bright():
+    lum = [
+        mpl.colors.to_rgb(c) @ np.array([0.2126, 0.7152, 0.0722])
+        for c in spide_colours("spatial", 9)
+    ]
+    assert np.all(np.diff(lum) > 0)
 
 
 def test_magnitude_ramp_darkens():
@@ -88,12 +122,12 @@ def test_colour_arguments_are_checked():
 
 
 def test_condition_colours_by_level_count():
-    assert T._condition_colours(["a", "b"]) == {"a": "#0A9396", "b": "#AE2012"}
+    assert T._condition_colours(["a", "b"]) == {"a": "#3E1A78", "b": "#E05A9E"}
     assert T._condition_colours(["all patients"]) == {"all patients": "black"}
-    assert T._direction_colours() == {"up": "#B8791A", "down": "#5B4B9A"}
+    assert T._direction_colours() == {"up": "#C99A16", "down": "#5B2C9E"}
     cmap, norm = T._t_cmap_norm(4.0)
     assert mpl.colors.to_hex(cmap(norm(0.0))) == "#f7f7f7"
-    assert mpl.colors.to_hex(cmap(norm(99.0))) == "#b8791a"  # beyond the limit: squished
+    assert mpl.colors.to_hex(cmap(norm(99.0))) == "#c99a16"  # beyond the limit: squished
 
 
 def test_style_is_a_context_that_restores_rcparams():

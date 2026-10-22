@@ -12,6 +12,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from matplotlib.ticker import MaxNLocator
 from scipy import stats
 
 from .._checks import check_intercepts, check_results, check_slopes_engine, check_triplet
@@ -265,11 +266,12 @@ def plot_patient_slopes(res, gene, index: str, niche: str, ci: float = 0.95) -> 
                 else:
                     ax.tick_params(labelleft=False)
                 ax.tick_params(labelbottom=ri == len(rows) - 1)
+                ax.xaxis.set_major_locator(MaxNLocator(nbins=3))  # breaks_extended(n = 3)
                 if ri == 0:
-                    _strip(ax, _strip_text(res, g, index, niche), fontsize=11 * 1.1 * 0.8)
+                    _strip(ax, _strip_text(res, g, index, niche), fontsize=11 * 1.1 * 0.8 * 0.85)
                 if ci_ == ncol - 1:
-                    ax.text(1.03, 0.5, c, transform=ax.transAxes, rotation=270, ha="left",
-                            va="center", fontsize=11 * 1.1 * 0.8,
+                    ax.text(1.03, 0.5, _break_label(c), transform=ax.transAxes, rotation=270,
+                            ha="left", va="center", fontsize=11 * 1.1 * 0.8 * 0.95,
                             bbox={"boxstyle": "square,pad=0.3", "fc": "none", "ec": "black",
                                   "lw": 0.5})  # fmt: skip
         fig.supxlabel(f"slope on {niche} density (log1p)", x=(left + ncol * pw / 2) / W,
@@ -290,6 +292,21 @@ def plot_patient_slopes(res, gene, index: str, niche: str, ci: float = 0.95) -> 
             fig.text(1 - 0.01, 0.01, f"Δ: slope difference, {res.contrast}", ha="right",
                      va="bottom", fontsize=11 * 1.1 * 0.8)  # fmt: skip
     return fig
+
+
+def _break_label(label: str) -> str:
+    """A label longer than 9 characters broken onto two lines, at its first hyphen or, failing
+    that, the space nearest its middle (``"Non-\\nresponder"``; R ``.breakLabel``)."""
+    label = str(label)
+    if len(label) <= 9:
+        return label
+    if "-" in label:
+        return label.replace("-", "-\n", 1)
+    sp = [i for i, ch in enumerate(label) if ch == " "]
+    if not sp:
+        return label
+    k = sp[int(np.argmin([abs(i + 1 - len(label) / 2) for i in sp]))]
+    return label[:k] + "\n" + label[k + 1 :]
 
 
 # --- plotPatientEffects ----------------------------------------------------------------------
@@ -612,7 +629,7 @@ def _pca_figure(D: dict, x) -> Figure:
                 d["PC2"],
                 c=v,
                 s=_point_area(2.2),
-                cmap=_magnitude_cmap(256, 0.1),
+                cmap=_magnitude_cmap(256),
                 linewidths=0,
             )
             cb = fig.colorbar(sc, ax=ax)

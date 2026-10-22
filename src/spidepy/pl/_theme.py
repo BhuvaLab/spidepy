@@ -1,8 +1,9 @@
 """The spiDE plot theme and colours (``R/plot-theme.R``).
 
-One colour per role, the same in every plot: amber / violet for the direction of a slope (and
-the diverging t scale), teal / rufous for the first / second condition level, the scico "lapaz"
-ramp for magnitudes and the Okabe-Ito colours for a nuisance factor. :func:`style` approximates
+One colour per role, the same in every plot (palette "V"): gold / violet for the direction of a
+slope (and the diverging t scale), dark violet / pink for the first / second condition level, the
+viridis "magma" ramp for magnitudes (light to dark), a brighter part of it for tissue coordinates
+(dark to bright, on a dark panel) and the Okabe-Ito colours for a nuisance factor. :func:`style` approximates
 ``theme_spiDE``: a black panel border, no grid, black ticks, boxed facet strips and italic legend
 titles. Matplotlib has no theme object, so the pieces a style context cannot carry (italic
 legend titles, boxed strips, facet layout) are small helpers here, shared by every plot.
@@ -20,21 +21,27 @@ import numpy as np
 
 # fixed colours by name (R .spideCols), in R's order
 _SPIDE_COLS = {
-    "up": "#B8791A",
-    "down": "#5B4B9A",
-    "first": "#0A9396",
-    "second": "#AE2012",
+    "up": "#C99A16",
+    "down": "#5B2C9E",
+    "first": "#3E1A78",
+    "second": "#E05A9E",
     "mid": "#F7F7F7",
     "faint": "grey92",
     "light": "grey80",
     "grey": "grey45",
+    "ink": "#140B2E",
+    "dim": "#3B3158",
 }
-# scico::scico(11, palette = "lapaz"), reversed to run light to dark (R .lapaz)
-_LAPAZ = ["#FEF2F2", "#F1D5C4", "#CAB79D", "#A0A695", "#7B9A9E", "#5B8BA2", "#4177A1",
-          "#315E98", "#27468B", "#212A78", "#190C64"]  # fmt: skip
+# near white, then viridisLite::magma(11, begin = 0.08, end = 0.98) reversed to run light to dark
+# (R .magma); near white so that low values look empty
+_MAGMA = ["#FDFAF4", "#FCF4B6", "#FECA8D", "#FE9F6D", "#F8745C", "#E44F64", "#C23B75", "#9C2E7F",
+          "#782281", "#55137D", "#2E1162", "#0F0B2C"]  # fmt: skip
+# viridisLite::magma(11, begin = 0.25, end = 0.98), dark to bright (R .magmaSpatial)
+_MAGMA_SPATIAL = ["#51127C", "#6D1D81", "#8B2981", "#A9337D", "#C73D73", "#E34E65", "#F46A5C",
+                  "#FC8C63", "#FEAF78", "#FED294", "#FCF4B6"]  # fmt: skip
 _OKABE_ITO = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7",
               "#999999"]  # fmt: skip
-_ROLES = ("direction", "condition", "magnitude", "diverging", "nuisance")
+_ROLES = ("direction", "condition", "magnitude", "spatial", "diverging", "nuisance")
 
 # matplotlib's CSS grey names are not R's: R's grey92 is #EBEBEB and so on
 _R_GREYS = {
@@ -139,14 +146,15 @@ def _hue_pal(n: int, h=(15.0, 375.0), c: float = 100.0, l: float = 65.0) -> list
     return _hex(np.clip(srgb, 0, 1))
 
 
-def _magnitude_ramp(n: int = 256, skip: float = 0.0) -> list[str]:
-    """The magnitude ramp, light to dark (R ``.magnitudeRamp``).
+def _magnitude_ramp(n: int = 256, spatial: bool = False) -> list[str]:
+    """The magnitude ramp, light to dark (magma; R ``.magnitudeRamp``).
 
-    ``skip`` drops that fraction of the light end: on a white panel the lowest values must stay
-    visible (the tissue map).
+    ``spatial=True`` gives the dark-panel ramp of tissue plots, dark to bright.
     """
-    r = _color_ramp_lab(_LAPAZ, 1000)
-    r = r[int(math.floor(skip * 999)) :]
+    base = _MAGMA_SPATIAL if spatial else _MAGMA
+    if n == len(base):
+        return list(base)
+    r = _color_ramp_lab(base, 1000)
     pos = np.round(np.linspace(1, len(r), n)).astype(int) - 1  # R round(): half to even
     return [r[i] for i in pos]
 
@@ -154,15 +162,16 @@ def _magnitude_ramp(n: int = 256, skip: float = 0.0) -> list[str]:
 def spide_colours(role: str | None = None, n: int = 9):
     """The spiDE colours (R ``spiDEColours``).
 
-    spiDE gives each role one colour and uses it in every plot: amber and violet for a slope that
-    rises or falls with niche density (and for the diverging t scale), teal and rufous for the
-    first and second level of the condition, the scico "lapaz" ramp for magnitudes, and the
-    Okabe-Ito colours for a nuisance factor such as slide. All pairs stay distinct under the
-    common forms of colour blindness.
+    spiDE gives each role one colour and uses it in every plot: gold and violet for a slope that
+    rises or falls with niche density (and for the diverging t scale), dark violet and pink for
+    the first and second level of the condition, the viridis "magma" ramp for magnitudes (light
+    to dark on the page), a brighter part of the same ramp (dark to bright) for plots in tissue
+    coordinates, drawn on a dark panel, and the Okabe-Ito colours for a nuisance factor such as
+    slide. The colours were checked under simulated deuteranopia, protanopia and tritanopia.
 
     Parameters
     ----------
-    role : {"direction", "condition", "magnitude", "diverging", "nuisance"}, optional
+    role : {"direction", "condition", "magnitude", "spatial", "diverging", "nuisance"}, optional
         ``None`` returns the named fixed colours.
     n : int
         The number of colours of a ramp, or of nuisance levels.
@@ -191,6 +200,8 @@ def spide_colours(role: str | None = None, n: int = 9):
         return [_SPIDE_COLS["first"], _SPIDE_COLS["second"]]
     if role == "magnitude":
         return _magnitude_ramp(n)
+    if role == "spatial":
+        return _magnitude_ramp(n, spatial=True)
     if role == "diverging":
         return _color_ramp_lab([_SPIDE_COLS["down"], _SPIDE_COLS["mid"], _SPIDE_COLS["up"]], n)
     return _OKABE_ITO[:n] if n <= len(_OKABE_ITO) else _hue_pal(n)
@@ -200,25 +211,25 @@ def spide_colours(role: str | None = None, n: int = 9):
 
 
 def _direction_colours() -> dict[str, str]:
-    """``{"up": amber, "down": violet}``."""
+    """``{"up": gold, "down": violet}``."""
     return {"up": _SPIDE_COLS["up"], "down": _SPIDE_COLS["down"]}
 
 
 def _condition_colours(levels) -> dict[str, str]:
-    """A colour per condition level: teal / rufous for two levels, else black (``.scaleCondition``)."""
+    """A colour per condition level: dark violet / pink for two levels, else black (``.scaleCondition``)."""
     levels = [str(x) for x in levels]
     if len(levels) == 2:
         return dict(zip(levels, (_SPIDE_COLS["first"], _SPIDE_COLS["second"]), strict=True))
     return {x: "black" for x in levels}
 
 
-def _magnitude_cmap(n: int = 256, skip: float = 0.0, name: str = "spide_magnitude"):
-    """The magnitude ramp as a matplotlib colormap."""
-    return mpl.colors.ListedColormap(_magnitude_ramp(n, skip), name=name)
+def _magnitude_cmap(n: int = 256, spatial: bool = False, name: str = "spide_magnitude"):
+    """The magnitude ramp (or, ``spatial=True``, the tissue ramp) as a matplotlib colormap."""
+    return mpl.colors.ListedColormap(_magnitude_ramp(n, spatial), name=name)
 
 
 def _t_cmap_norm(limit: float):
-    """The diverging t scale: violet - near-white - amber, symmetric about 0 (``.scaleT``).
+    """The diverging t scale: violet - near-white - gold, symmetric about 0 (``.scaleT``).
 
     Returns ``(cmap, norm)``; values beyond ``+-limit`` are squished onto the end colours.
     """

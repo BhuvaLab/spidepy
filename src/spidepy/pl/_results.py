@@ -598,8 +598,9 @@ def plot_spillover(
         y0, y1 = ax.get_ylim()
         ax.axvspan(lf, max(x1, lf), color=_FAINT, lw=0, zorder=0)
         ax.set_xlim(x0, max(x1, lf))
-        ax.text(0.985, 0.03, f"{D['n_marker']} of {D['n_called']} calls\n≥ {r_num_str(fold)}-fold in niche type",
-                transform=ax.transAxes, ha="right", va="bottom", fontsize=3.4 * _PT)  # fmt: skip
+        # right-aligned at the fold threshold, at the foot of the panel
+        ax.text(lf, 0.03, f"{D['n_marker']} of {D['n_called']} calls\n≥ {r_num_str(fold)}-fold in niche type",
+                transform=ax.get_xaxis_transform(), ha="right", va="bottom", fontsize=3.4 * _PT)  # fmt: skip
         if len(lab):
             xl = lf - 0.4
             gap = (y1 - y0) * (8.5 * 1.7) / (H * 72 * (1 - 1.0 / H))
@@ -737,7 +738,7 @@ def plot_triplet_heatmap(
     """Niche-response profiles of genes or gene sets (R ``plotTripletHeatmap``).
 
     Features (genes, or gene sets from :func:`~spidepy.spi_gsea`) against every (index, niche)
-    column: the fill is the test's t (amber: the slope rises with the niche's density, or is
+    column: the fill is the test's t (gold: the slope rises with the niche's density, or is
     higher in the second condition; violet: the reverse), a dot marks a call, grey a feature not
     tested in that index type. Rows are clustered on their t profiles. Read it for a gene's or
     pathway's response across all cell-type pairs, and for pairs that share responses.
@@ -952,9 +953,9 @@ def plot_p_values(res, bands: int = 5) -> Figure:
                 ax.margins(y=0.05)
                 ax.set_ylim(bottom=0)
                 if ri == 0:
-                    _strip(ax, b, fontsize=_FS * 0.8)
+                    _strip(ax, _strwrap(b, 9), fontsize=_FS * 0.8 * 0.85)
                 if ci == len(bl) - 1:
-                    _strip_box(ax, t)
+                    _strip_box(ax, _strwrap(t, 9))
         fig.supxlabel("p-value", x=(0.8 + (W - 1.7) / 2) / W, fontsize=_FS)
         fig.supylabel("triplets", fontsize=_FS)
         fig.legend([Line2D([], [], color="black", ls="--", lw=1)], ["uniform"], loc="lower right",

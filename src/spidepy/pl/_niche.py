@@ -38,7 +38,6 @@ from ._theme import (
     _point_area,
     _strip,
     _wrap_dims,
-    r_colour_hex,
     style,
 )
 
@@ -132,7 +131,8 @@ def plot_niche_map(
 
     One sample's cells, coloured by the log1p density of a niche type: the covariate spiDE
     regresses on. With ``index``, only the index type's cells are coloured (the covariate as the
-    index type's model reads it) and the others are light grey.
+    index type's model reads it) and the others are dim. The panel is dark (the sticker's ink) so
+    that the lowest densities stay visible; the colour bar, titles and axes keep the page's style.
 
     Read it to judge the bandwidth: a speckled field that follows single cells is too small; a
     field nearly flat within a section is too large (the patient intercept then absorbs it). It
@@ -202,27 +202,30 @@ def plot_niche_map(
                     g["x"],
                     g["y"],
                     s=_point_area(point_size * 0.7),
-                    c=r_colour_hex(_SPIDE_COLS["faint"]),
+                    c=_SPIDE_COLS["dim"],
                     linewidths=0,
                     marker="o",
                 )
             f = s[s["focal"]]
             sc = ax.scatter(
                 f["x"], f["y"], s=_point_area(point_size), c=f["density"],
-                cmap=_magnitude_cmap(256, 0.1), vmin=vmin, vmax=vmax if vmax > vmin else vmin + 1,
+                cmap=_magnitude_cmap(256, spatial=True), vmin=vmin, vmax=vmax if vmax > vmin else vmin + 1,
                 linewidths=0, marker="o",
             )  # fmt: skip
             if bar is not None:
                 b = bar.iloc[0]
-                ax.plot([b["x"], b["xend"]], [b["y"], b["y"]], color="black", lw=0.8 * _PT,
+                ax.plot([b["x"], b["xend"]], [b["y"], b["y"]], color="white", lw=0.8 * _PT,
                         solid_capstyle="butt")  # fmt: skip
                 ax.annotate(b["label"], ((b["x"] + b["xend"]) / 2, b["y"]), xytext=(0, -4),
                             textcoords="offset points", ha="center", va="top",
-                            fontsize=3.2 * _PT)  # fmt: skip
+                            fontsize=3.2 * _PT, color="white")  # fmt: skip
             ax.set_xlim(xr[0] - ex, xr[1] + ex)
             ax.set_ylim(*ylim)
             ax.set_aspect("equal", adjustable="box")
             _blank_panel(ax)
+            ax.set_facecolor(_SPIDE_COLS["ink"])  # the dark panel
+            for sp in ax.spines.values():
+                sp.set_edgecolor(_SPIDE_COLS["ink"])
             if len(sections) > 1:
                 _strip(ax, sections[k])
         cb = fig.colorbar(sc, ax=axs.ravel().tolist(), shrink=0.6, aspect=18)

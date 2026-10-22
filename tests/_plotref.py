@@ -96,7 +96,6 @@ def res_from_dump(d: dict) -> SpiDEResults:
         contrast=d["contrast"],
         procedure=d["procedure"],
         fdr=float(d["fdr"]),
-        pooled_df=d["pooled_df"] or None,
         fit=fit_from_dump(d["fit"]),
     )
 
