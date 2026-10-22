@@ -195,15 +195,36 @@ def plot_patient_slopes(res, gene, index: str, niche: str, ci: float = 0.95) -> 
         From the slopes engine.
     gene : str or sequence of str
         One or more genes, one column each.
-    index, niche : str
-        The index and niche cell types.
-    ci : float
+    index : str
+        The index cell type.
+    niche : str
+        The niche cell type.
+    ci : float, default 0.95
         The confidence level of the intervals.
 
     Returns
     -------
     matplotlib.figure.Figure
         One column per gene and one row per condition group.
+
+    See Also
+    --------
+    patient_slopes : The slopes drawn here, as a table.
+    plot_niche_response : The cells behind a slope.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> from spidepy import build_niches, fit_spide, test_spide
+    >>> from spidepy.datasets import toy_spide
+    >>> from spidepy.pl import plot_patient_slopes
+    >>> adata = build_niches(toy_spide(), sigma=30)
+    >>> fit = fit_spide(adata, condition="condition", verbose=False)
+    >>> res = test_spide(fit)
+    >>> fig = plot_patient_slopes(res, gene="G1", index="A", niche="B")
+    >>> type(fig).__name__
+    'Figure'
+    >>> plt.close(fig)
     """
     D = _patient_slopes_data(res, gene, index, niche, ci)
     d, band, gm, lab, lv, z, genes = (
@@ -534,25 +555,46 @@ def plot_patient_effects(
     Parameters
     ----------
     x : SpiDEResults or SpiDEFit
+        The results (or the fit) whose patients are analysed.
     index : str
         The index cell type.
     niche : str, optional
         `None` (the intercepts) or a niche type (its slopes; slopes engine).
     covariates : sequence of str, optional
         `None` (all) or the covariates to show, by the names in the plot.
-    type : {"association", "pca"}
+    type : {"association", "pca"}, default "association"
         The R^2 tiles, or the first two components coloured by `colour_by`.
     colour_by : str, optional
         For `type="pca"`: a covariate (default the condition, else the first).
-    n_pcs : int
+    n_pcs : int, default 5
         The number of components shown.
-    ntop : int
+    ntop : int, default 500
         The number of genes, most expressed first, whose values enter the components (a gene
         with any non-finite value is left out).
 
     Returns
     -------
     matplotlib.figure.Figure
+        The R^2 tiles, or the PCA scatter for `type="pca"`.
+
+    See Also
+    --------
+    patient_intercepts : The intercepts analysed here.
+    plot_patient_slopes : The patients' slopes for one triplet.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> from spidepy import build_niches, fit_spide, test_spide
+    >>> from spidepy.datasets import toy_spide
+    >>> from spidepy.pl import plot_patient_effects
+    >>> adata = build_niches(toy_spide(), sigma=30)
+    >>> fit = fit_spide(adata, condition="condition", verbose=False)
+    >>> res = test_spide(fit)
+    >>> fig = plot_patient_effects(res, index="A")
+    >>> type(fig).__name__
+    'Figure'
+    >>> plt.close(fig)
     """
     D = _patient_effects_data(x, index, niche, covariates, type, colour_by, n_pcs, ntop)
     d = D["data"]

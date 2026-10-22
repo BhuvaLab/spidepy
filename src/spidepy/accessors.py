@@ -59,8 +59,12 @@ def patient_slopes(obj, gene=None, index=None, niche=None) -> pd.DataFrame:
     ----------
     obj : SpiDEFit or SpiDEResults
         A fit (or the results of one) from the slopes engine.
-    gene, index, niche : str or sequence of str, optional
-        Subsets.
+    gene : str or sequence of str, optional
+        Keep only these genes.
+    index : str or sequence of str, optional
+        Keep only these index cell types.
+    niche : str or sequence of str, optional
+        Keep only these niche cell types.
 
     Returns
     -------
@@ -68,6 +72,22 @@ def patient_slopes(obj, gene=None, index=None, niche=None) -> pd.DataFrame:
         `gene, index, niche, patient, slope, var_spatial` (the within-patient spatial
         sandwich variance), `var_model, ncells` plus the patient-level columns recorded by
         `fit_spide`; ordered by index, gene, niche, patient.
+
+    See Also
+    --------
+    patient_intercepts : The patients' intercepts.
+    fit_spide : Estimates the slopes.
+
+    Examples
+    --------
+    >>> from spidepy import build_niches, fit_spide, patient_slopes
+    >>> from spidepy.datasets import toy_spide
+    >>> fit = fit_spide(build_niches(toy_spide(), sigma=30), condition="condition", verbose=False)
+    >>> sl = patient_slopes(fit, gene="G1", index="A")
+    >>> sl.shape
+    (32, 11)
+    >>> sl.columns.tolist()[:5]
+    ['gene', 'index', 'niche', 'patient', 'slope']
     """
     fit = _as_fit(obj)
     if fit.engine != "slopes":
@@ -121,8 +141,11 @@ def patient_intercepts(obj, gene=None, index=None) -> pd.DataFrame:
     Parameters
     ----------
     obj : SpiDEFit or SpiDEResults
-    gene, index : str or sequence of str, optional
-        Subsets.
+        A fit, or the results of one.
+    gene : str or sequence of str, optional
+        Keep only these genes.
+    index : str or sequence of str, optional
+        Keep only these index cell types.
 
     Returns
     -------
@@ -130,6 +153,21 @@ def patient_intercepts(obj, gene=None, index=None) -> pd.DataFrame:
         `gene, index, patient, intercept` (log scale), `ncells` (the patient's cells of
         the index type) plus the patient-level columns recorded by
         `fit_spide`; ordered by index, gene, patient.
+
+    See Also
+    --------
+    patient_slopes : The patients' niche slopes.
+
+    Examples
+    --------
+    >>> from spidepy import build_niches, fit_spide, patient_intercepts
+    >>> from spidepy.datasets import toy_spide
+    >>> fit = fit_spide(build_niches(toy_spide(), sigma=30), condition="condition", verbose=False)
+    >>> ic = patient_intercepts(fit, gene="G1")
+    >>> ic.shape
+    (48, 8)
+    >>> ic.columns.tolist()[:4]
+    ['gene', 'index', 'patient', 'intercept']
     """
     fit = _as_fit(obj)
     gene, index = _as_list(gene), _as_list(index)
@@ -165,6 +203,38 @@ def patient_intercepts(obj, gene=None, index=None) -> pd.DataFrame:
 
 
 def results(res: SpiDEResults, test: str | None = None, fdr: float | None = None) -> pd.DataFrame:
-    """Extract spiDE's test results (R `results`); see `SpiDEResults.results`."""
+    """Extract spiDE's test results (R `results`); see `SpiDEResults.results`.
+
+    Parameters
+    ----------
+    res : SpiDEResults
+        The results of `test_spide` or `spide`.
+    test : {"condition", "pooled", "both"}, optional
+        Which test's rows (default: the condition test if there is one, else pooled).
+    fdr : float, optional
+        Keep only the rows in a BH family with `q <= fdr`.
+
+    Returns
+    -------
+    pandas.DataFrame
+        One row per (gene, index, niche, test), ordered by p-value (missing last).
+
+    See Also
+    --------
+    SpiDEResults.results : The method this calls.
+    test_spide : Produces the results.
+
+    Examples
+    --------
+    >>> from spidepy import build_niches, fit_spide, results, test_spide
+    >>> from spidepy.datasets import toy_spide
+    >>> fit = fit_spide(build_niches(toy_spide(), sigma=30), condition="condition", verbose=False)
+    >>> res = test_spide(fit)
+    >>> tb = results(res, test="pooled")
+    >>> tb.shape
+    (120, 13)
+    >>> results(res, fdr=0.05)[["gene", "index", "niche", "test"]].values.tolist()
+    [['G1', 'A', 'B', 'condition']]
+    """
     check_results(res, "results()")
     return res.results(test=test, fdr=fdr)

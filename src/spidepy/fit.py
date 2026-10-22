@@ -113,7 +113,7 @@ def fit_spide(
         The `obs` column holding a two-level, patient-level condition. The slopes engine
         only records it; the sandwich engine fits the condition-specific model only when it
         is given.
-    engine : {"slopes", "sandwich"}
+    engine : {"slopes", "sandwich"}, default "slopes"
         The between-patient error engine.
     index : str or sequence of str, optional
         Index cell types (default: every type with at least `min_cells` cells in at least
@@ -123,15 +123,17 @@ def fit_spide(
         index type is never tested against its own niche (see `merge_niches`).
     sigma : float, optional
         The niche bandwidth (needed only if `adata` carries several).
-    cell_type, sample_id : str
-        The `obs` columns of the cell type and of the patient (the replicated unit).
+    cell_type : str, default "cell_type"
+        The `obs` column of the cell type.
+    sample_id : str, default "sample_id"
+        The `obs` column of the patient (the replicated unit).
     section : str, optional
         The `obs` column of the tissue section (default `sample_id`), used to lay the
         spatial tiles of the variance estimate.
-    covariates : sequence of str
+    covariates : str or sequence of str, default ()
         Cell-level `obs` columns to adjust for (centred; patient-level ones are refused, the
         patient intercepts absorb them).
-    depth : {"loglib", "nonlinear", "spatial_spline", "none"}
+    depth : {"loglib", "nonlinear", "spatial_spline", "none"}, default "loglib"
         How sequencing depth enters: the centred log library size as a covariate; a 3-df
         natural spline of it; a library-size spline within each patient that may vary over the
         section; or not at all (e.g. when `offset` carries depth).
@@ -142,29 +144,51 @@ def fit_spide(
         A patient-level `obs` column (e.g. slide or batch) whose niche slopes are adjusted
         for in the condition test. Used by the sandwich engine's condition model here and by
         the slopes engine at test time; the pooled model never uses it.
-    assay : str
+    assay : str, default "counts"
         The layer of raw integer counts (`X` for `"counts"` when no such layer exists).
-    name : str
+    name : str, default "Niche"
         The niche `obsm` prefix.
-    min_cells, min_patients : int
-        Minimum cells of an index type a patient must contribute; minimum patients a type needs.
-    min_detect : float
+    min_cells : int, default 10
+        Minimum cells of an index type a patient must contribute.
+    min_patients : int, default 6
+        Minimum patients a type needs.
+    min_detect : float, default 0.1
         Minimum fraction of an index type's cells in which a gene is detected.
     genes : sequence of str, optional
         Genes to test (default every gene). Library size is always computed from every gene.
     tile : float, optional
         Side of the square tiles of the spatial variance estimate (default 3 x `sigma`).
-    min_tiles : int
+    min_tiles : int, default 5
         Minimum tiles a patient needs for its own spatial variance.
-    n_jobs : int
+    n_jobs : int, default 1
         Genes are fitted in blocks over this many workers; the result does not depend on it
         beyond floating-point summation order.
-    verbose : bool
+    verbose : bool, default True
         Report progress on stderr.
 
     Returns
     -------
     SpiDEFit
+        The fitted models, one entry per index cell type.
+
+    See Also
+    --------
+    build_niches : Build the niche matrices this reads.
+    test_spide : Test a fit across patients.
+    spide : Build, fit and test in one call.
+
+    Examples
+    --------
+    >>> from spidepy import build_niches, fit_spide
+    >>> from spidepy.datasets import toy_spide
+    >>> adata = build_niches(toy_spide(), sigma=30)
+    >>> fit = fit_spide(adata, condition="condition", verbose=False)
+    >>> fit.engine, fit.sigma
+    ('slopes', 30.0)
+    >>> list(fit.index)
+    ['A', 'B', 'C']
+    >>> fit.index["A"]["niches"]
+    ['B', 'C']
     """
     engine = _match_arg(engine, _ENGINES, "engine")
     depth = _match_arg(depth, _DEPTHS, "depth")

@@ -57,18 +57,38 @@ def test_spide(
         was fitted with. The contrast is second level minus first.
     procedure : {"pooled_or_heterogeneity", "heterogeneity", "filtered", "all"}, optional
         The condition test's family; default by engine.
-    fdr : float
+    fdr : float, default 0.05
         The FDR level of the filter.
     strata : str, optional
         Default: the fit's. A patient-level column adjusted for in the slopes engine's
         condition test (e.g. slide, where the condition is confounded with it).
-    n_jobs : int
+    n_jobs : int, default 1
         The slopes engine's condition test is run over genes in blocks on this many workers.
 
     Returns
     -------
     SpiDEResults
         Read it with `SpiDEResults.results`.
+
+    See Also
+    --------
+    fit_spide : Produces the fit that is tested here.
+    spide : Build, fit and test in one call.
+    results : Extract the results table.
+
+    Examples
+    --------
+    >>> from spidepy import build_niches, fit_spide, test_spide
+    >>> from spidepy.datasets import toy_spide
+    >>> adata = build_niches(toy_spide(), sigma=30)
+    >>> fit = fit_spide(adata, condition="condition", verbose=False)
+    >>> res = test_spide(fit)
+    >>> res.contrast
+    'Responder - Non-responder'
+    >>> res.procedure
+    'pooled_or_heterogeneity'
+    >>> sorted(res.results(test="both")["test"].unique())
+    ['condition', 'pooled']
     """
     if not isinstance(fit, SpiDEFit):
         raise TypeError("'fit' should be a SpiDEFit from fit_spide()")
@@ -156,20 +176,24 @@ def spide(
         Cells x genes with raw counts. Niches built here are not left on `adata`.
     condition : str, optional
         The `obs` column of a two-level, patient-level condition.
-    sigma : float
-        The niche bandwidth.
-    engine : {"slopes", "sandwich"}
+    sigma : float, default None
+        The niche bandwidth (a single value). Required: `None` raises an error.
+    engine : {"slopes", "sandwich"}, default "slopes"
         See `fit_spide`.
-    procedure, fdr
-        Passed to `test_spide`; `procedure` defaults to the engine's default.
-    cell_type, sample_id : str
-        The `obs` columns of cell type and patient.
-    name : str
+    procedure : str, optional
+        Passed to `test_spide`; defaults to the engine's default.
+    fdr : float, default 0.05
+        Passed to `test_spide`.
+    cell_type : str, default "cell_type"
+        The `obs` column of the cell type.
+    sample_id : str, default "sample_id"
+        The `obs` column of the patient.
+    name : str, default "Niche"
         The niche key prefix: the niches are read from, or built into,
         `adata.obsm[name + sigma]`.
-    n_jobs : int
+    n_jobs : int, default 1
         Number of workers.
-    verbose : bool
+    verbose : bool, default True
         Report progress on stderr.
     **fit_kwargs
         Further arguments to `fit_spide`.
@@ -177,6 +201,23 @@ def spide(
     Returns
     -------
     SpiDEResults
+        The tests of the fit.
+
+    See Also
+    --------
+    build_niches : The first step.
+    fit_spide : The second step.
+    test_spide : The third step.
+
+    Examples
+    --------
+    >>> from spidepy import spide
+    >>> from spidepy.datasets import toy_spide
+    >>> res = spide(toy_spide(), condition="condition", sigma=30, verbose=False)
+    >>> res.fit.engine
+    'slopes'
+    >>> res.results().columns.tolist()[:4]
+    ['gene', 'index', 'niche', 'test']
     """
     engine = _match_arg(engine, ("slopes", "sandwich"), "engine")
     if procedure is not None:

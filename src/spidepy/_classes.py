@@ -1,8 +1,8 @@
 """The two result classes of the per-patient engines (`R/AllClasses.R`).
 
 `SpiDEFit` holds, per index cell type, what `spidepy.fit_spide` estimated;
-`SpiDEResults` holds the tidy table of the tests and the fit it came from. R's `$` slot accessor is plain attribute access here, and
-R's legacy-object guard (`.assertCurrent`) has no counterpart: there are no legacy objects.
+`SpiDEResults` holds the tidy table of the tests and the fit it came from. R's `$` slot
+accessor is plain attribute access here, and R's legacy-object guard (`.assertCurrent`) has no counterpart: there are no legacy objects.
 
 Contents of `SpiDEFit.index[k]` (keys are R's list names):
 
@@ -49,6 +49,25 @@ class SpiDEFit:
         One entry per index cell type holding the engine's estimates (see the module docs).
     params : dict
         The settings the fit used.
+
+    See Also
+    --------
+    fit_spide : Creates a `SpiDEFit`.
+    SpiDEResults : The tests of a fit.
+
+    Examples
+    --------
+    >>> from spidepy import build_niches, fit_spide
+    >>> from spidepy.datasets import toy_spide
+    >>> fit = fit_spide(build_niches(toy_spide(), sigma=30), verbose=False)
+    >>> print(fit)
+    SpiDEFit (slopes engine), bandwidth 30
+      16 patients; condition: none
+      index A: 20 genes x 2 niches (B, C)
+      index B: 20 genes x 2 niches (A, C)
+      index C: 20 genes x 2 niches (A, B)
+    >>> fit.patients.shape[0]
+    16
     """
 
     engine: str
@@ -99,6 +118,24 @@ class SpiDEResults:
         The FDR level of the filter.
     fit : SpiDEFit
         The fit that was tested.
+
+    See Also
+    --------
+    test_spide : Creates a `SpiDEResults`.
+    results : Function form of `SpiDEResults.results`.
+
+    Examples
+    --------
+    >>> from spidepy import build_niches, fit_spide, test_spide
+    >>> from spidepy.datasets import toy_spide
+    >>> fit = fit_spide(build_niches(toy_spide(), sigma=30), condition="condition", verbose=False)
+    >>> res = test_spide(fit)
+    >>> print(res)
+    SpiDEResults (slopes engine)
+      pooled across patients: 120 tests, 2 at FDR 0.05
+      condition-specific (Responder - Non-responder; pooled_or_heterogeneity family): 2 tests, 1 at FDR 0.05
+    >>> res.table.shape[1]
+    13
     """
 
     table: pd.DataFrame
@@ -117,6 +154,26 @@ class SpiDEResults:
             Which test's rows (default: the condition test if the table has one, else pooled).
         fdr : float, optional
             Keep only the rows in a BH family with `q <= fdr`.
+
+        Returns
+        -------
+        pandas.DataFrame
+            The `SpiDEResults.table` rows of the chosen test, ordered by `p` (missing last).
+
+        See Also
+        --------
+        results : Function form.
+
+        Examples
+        --------
+        >>> from spidepy import build_niches, fit_spide, test_spide
+        >>> from spidepy.datasets import toy_spide
+        >>> fit = fit_spide(build_niches(toy_spide(), sigma=30), condition="condition", verbose=False)
+        >>> res = test_spide(fit)
+        >>> res.results(test="pooled").shape
+        (120, 13)
+        >>> res.results(fdr=0.05)[["gene", "index", "niche"]].values.tolist()
+        [['G1', 'A', 'B']]
         """
         tb = self.table
         if test is None:

@@ -173,7 +173,7 @@ def spide_colours(role: str | None = None, n: int = 9):
     ----------
     role : {"direction", "condition", "magnitude", "spatial", "diverging", "nuisance"}, optional
         `None` returns the named fixed colours.
-    n : int
+    n : int, default 9
         The number of colours of a ramp, or of nuisance levels.
 
     Returns
@@ -181,6 +181,22 @@ def spide_colours(role: str | None = None, n: int = 9):
     dict or list of str
         `{name: colour}` for `role=None`, else a list of colours (hex, or R's `greyNN`
         names for the fixed ones).
+
+    See Also
+    --------
+    style : The matplotlib style that goes with these colours.
+
+    Examples
+    --------
+    >>> from spidepy.pl import spide_colours
+    >>> spide_colours("direction", 2)
+    ['#C99A16', '#5B2C9E']
+    >>> spide_colours("condition", 2)
+    ['#3E1A78', '#E05A9E']
+    >>> len(spide_colours("magnitude", 5))
+    5
+    >>> sorted(spide_colours())[:3]
+    ['dim', 'down', 'faint']
     """
     if role is None:
         return dict(_SPIDE_COLS)
@@ -254,8 +270,31 @@ def style(rl: float = 1.1) -> Iterator[None]:
 
     Parameters
     ----------
-    rl : float
-        A positive number, the text size relative to ggplot2's default.
+    rl : float, default 1.1
+        A positive number: the text size relative to a base of 11 pt.
+
+    Yields
+    ------
+    None
+        The matplotlib rc parameters are restored on exit.
+
+    See Also
+    --------
+    spide_colours : The colours the spiDE plots use.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> from spidepy.pl import style
+    >>> with style(rl=1.0):
+    ...     fig, ax = plt.subplots()
+    ...     _ = ax.plot([0, 1], [0, 1])
+    ...     size = plt.rcParams["font.size"]
+    >>> size
+    11.0
+    >>> type(fig).__name__
+    'Figure'
+    >>> plt.close(fig)
     """
     if (
         isinstance(rl, bool)

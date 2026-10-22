@@ -360,28 +360,38 @@ def test_niche_abundance(
         With niche matrices in `obsm` (see `build_niches`).
     condition : str, optional
         The `obs` column of a two-level condition (constant within sample).
-    sigma : float
-        The niche bandwidth (one value).
-    index, niche : str or sequence of str, optional
-        Restrict the index / niche cell types. An index type is never tested against its own
+    sigma : float, default None
+        The niche bandwidth (one value). Required: `None` raises an error.
+    index : str or sequence of str, optional
+        Restrict the index cell types.
+    niche : str or sequence of str, optional
+        Restrict the niche cell types. An index type is never tested against its own
         niche: itself, or the merged niche it is a member of (see `merge_niches`).
-    covariates : str or sequence of str
+    covariates : str or sequence of str, default ()
         Sample-level `obs` columns to adjust for (first non-missing value per sample).
-    assay, cell_type, sample_id, name : str
-        The counts layer, the `obs` columns of cell type and sample, the niche key prefix.
-    min_cells : int
+    assay : str, default "counts"
+        The layer of raw counts.
+    cell_type : str, default "cell_type"
+        The `obs` column of the cell type.
+    sample_id : str, default "sample_id"
+        The `obs` column of the sample.
+    name : str, default "Niche"
+        The niche key prefix.
+    min_cells : int, default 10
         Minimum cells of the index type a sample must contribute (else dropped for that type).
-    prior_count : float
+    prior_count : float, default 1
         The pseudocount of the log2-CPM.
-    max_leverage : float
+    max_leverage : float, default 3
         A number above 1; `inf` turns the cap off.
     genesets : dict, optional
         `{set name: gene identifiers}`; tests sets instead of genes.
-    type : {"competitive", "self-contained"}
+    type : {"competitive", "self-contained"}, default "competitive"
         With `genesets`: the set against the other genes, or the set alone.
-    min_size, max_size : int
-        With `genesets`: size limits after intersecting with each index type's genes.
-    verbose : bool
+    min_size : int, default 5
+        With `genesets`: smallest set size, after intersecting with each index type's genes.
+    max_size : int, default 500
+        With `genesets`: largest set size, after intersecting with each index type's genes.
+    verbose : bool, default True
         Report progress on stderr.
 
     Returns
@@ -392,6 +402,22 @@ def test_niche_abundance(
         `downweighted`, `q` (BH within each index, niche, term) and `q.global`. With
         `genesets` the column `gene` becomes `set`, followed by `size`, and a
         `direction` column is added.
+
+    See Also
+    --------
+    build_niches : Builds the niche matrices this reads.
+    spi_gsea : The within-patient gene-set tests.
+
+    Examples
+    --------
+    >>> from spidepy import build_niches, test_niche_abundance
+    >>> from spidepy.datasets import toy_spide
+    >>> adata = build_niches(toy_spide(), sigma=30)
+    >>> ab = test_niche_abundance(adata, condition="condition", sigma=30, verbose=False)
+    >>> ab.shape
+    (240, 12)
+    >>> sorted(ab["term"].unique())
+    ['condition:niche', 'niche']
     """
     check_adata(adata, assay=assay, cell_type=cell_type, sample_id=sample_id)
     if (

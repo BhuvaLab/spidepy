@@ -91,23 +91,45 @@ def build_niches(
     ----------
     adata : AnnData
         Cells x genes with `obsm["spatial"]`, a cell type and a sample id column.
-    sigma : float or sequence of float
+    sigma : float or sequence of float, default (10, 30, 50, 70)
         Kernel bandwidths in the units of the spatial coordinates.
-    cell_type, sample_id : str
-        `adata.obs` columns holding cell type labels and sample identifiers.
-    edge, diggle : bool
-        Edge correction passed to the density (see `spidepy._kde`).
-    name : str
+    cell_type : str, default "cell_type"
+        `adata.obs` column holding the cell type labels.
+    sample_id : str, default "sample_id"
+        `adata.obs` column holding the sample identifiers; densities are estimated within
+        each sample.
+    edge : bool, default True
+        Apply the edge correction to the density (see `spidepy._kde`).
+    diggle : bool, default True
+        Use Diggle's edge-correction variant (only used when `edge` is true).
+    name : str, default "Niche"
         Prefix of the `obsm` keys.
-    n_jobs : int
+    n_jobs : int, default 1
         Number of joblib workers over samples; the result does not depend on it.
-    copy : bool
+    copy : bool, default False
         Return a modified copy instead of modifying `adata` in place.
 
     Returns
     -------
-    AnnData
+    anndata.AnnData
         `adata` (or its copy) with one niche matrix per bandwidth.
+
+    See Also
+    --------
+    merge_niches : Sum niche columns into broader groups.
+    fit_spide : Fit the per-patient niche models on these matrices.
+
+    Examples
+    --------
+    >>> from spidepy import build_niches
+    >>> from spidepy.datasets import toy_spide
+    >>> adata = build_niches(toy_spide(), sigma=[10, 30])
+    >>> [k for k in adata.obsm if k.startswith("Niche")]
+    ['Niche10', 'Niche30']
+    >>> adata.obsm["Niche30"].shape
+    (2400, 3)
+    >>> adata.obsm["Niche30"].columns.tolist()
+    ['A', 'B', 'C']
     """
     check_adata(adata, cell_type=cell_type, sample_id=sample_id)
     if copy:
@@ -177,19 +199,35 @@ def merge_niches(
     ----------
     adata : AnnData
         With niche matrices (see `build_niches`).
-    groups : dict
+    groups : dict of str to sequence of str
         Merged niche name -> cell-type columns to sum.
     sigma : float or sequence of float, optional
-        Bandwidths to update; `None` updates every `obsm` key starting with `name`
-        (R greps `^name`, so this also catches keys such as `"NicheFoo"`).
-    name : str
+        Bandwidths to update; `None` (the default) updates every `obsm` key starting with
+        `name` (R greps `^name`, so this also catches keys such as `"NicheFoo"`).
+    name : str, default "Niche"
         Key prefix of the niche matrices.
-    copy : bool
+    copy : bool, default False
         Return a modified copy instead of modifying `adata` in place.
 
     Returns
     -------
-    AnnData
+    anndata.AnnData
+        `adata` (or its copy) with the merged niche matrices.
+
+    See Also
+    --------
+    build_niches : Build the niche matrices that are merged here.
+
+    Examples
+    --------
+    >>> from spidepy import build_niches, merge_niches
+    >>> from spidepy.datasets import toy_spide
+    >>> adata = build_niches(toy_spide(), sigma=30)
+    >>> adata = merge_niches(adata, {"AB": ["A", "B"]}, sigma=30)
+    >>> adata.obsm["Niche30"].columns.tolist()
+    ['AB', 'C']
+    >>> adata.uns["spiDE_niche_groups"]["Niche30"]["AB"]
+    ['A', 'B']
     """
     if not isinstance(groups, dict) or len(groups) == 0:
         raise ValueError("'groups' should be a named (non-empty) dict of cell-type lists")

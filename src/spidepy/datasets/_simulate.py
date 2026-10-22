@@ -147,24 +147,26 @@ def simulate_toy(
 
     Parameters
     ----------
-    n_samples : int
+    n_samples : int, default 6
         Number of samples (alternately Responder, Non-responder; ids `S1`, `S2`, ...).
-    n_per : int
+    n_per : int, default 80
         Cells per sample.
-    n_genes : int
+    n_genes : int, default 20
         Number of genes (`G1`, `G2`, ...).
-    field : float
+    field : float, default 500
         Side length of the square spatial field.
-    sd_lib_sample, sd_lib_celltype : float
-        Log-scale SDs of the sample-level and cell-type-level library-size terms.
-    beta : float
+    sd_lib_sample : float, default 0.15
+        Log-scale SD of the sample-level library-size term.
+    sd_lib_celltype : float, default 0.35
+        Log-scale SD of the cell-type-level library-size term.
+    beta : float, default 2
         Maximum log-fold change of the planted G1 effect, planted as `beta * x / field`.
         The response is non-monotonic in `beta`; the default is the peak.
-    composition : float
+    composition : float, default 0
         Size of a planted between-sample composition confound on G2 in index type A
         (constant within sample, so the true within-sample niche slope is zero). `0` plants
         none and draws no extra random numbers.
-    seed : int
+    seed : int, default 1
         Seed of the `numpy.random.default_rng` used for every draw.
 
     Returns
@@ -173,6 +175,23 @@ def simulate_toy(
         Cells x genes counts in `X` and `layers["counts"]`, `obs` columns `sample_id`,
         `condition`, `x`, `y`, `cell_type`, `Age`, `cell_id`, `Area`, `nCount`
         and `obsm["spatial"]`.
+
+    See Also
+    --------
+    toy_spide : The bundled data set from R.
+    simulate_niche : The same without a condition.
+    simulate_clustered : A null with patient-level clustering.
+
+    Examples
+    --------
+    >>> from spidepy.datasets import simulate_toy
+    >>> adata = simulate_toy(n_samples=4, n_per=50, seed=1)
+    >>> adata.shape
+    (200, 20)
+    >>> adata.obs["condition"].unique().tolist()
+    ['Responder', 'Non-responder']
+    >>> bool((adata.X >= 0).all())
+    True
     """
     rng = np.random.default_rng(seed)
     gene_names = [f"G{i}" for i in range(1, n_genes + 1)]
@@ -217,23 +236,49 @@ def simulate_niche(
 ) -> AnnData:
     """Synthetic spatial data set with a condition-free neighbourhood effect.
 
-    Port of spiDE's internal `.toyNiche()` (dropped from R in c8db60a; kept here). Like `simulate_toy`, but gene `G1` in
-    index cell type "A" rises with the local density of niche cell type "B" in every cell, and
-    there is no `condition` column, so it can only be analysed in the condition-free mode.
+    Port of spiDE's internal `.toyNiche()` (dropped from R in c8db60a; kept here). Like
+    `simulate_toy`, but gene `G1` in index cell type "A" rises with the local density of niche
+    cell type "B" in every cell, and there is no `condition` column, so it can only be analysed
+    in the condition-free mode.
     The generative model is R's; the random draws are not (numpy vs Mersenne-Twister), and the
     global numpy RNG is not touched.
 
     Parameters
     ----------
-    n_samples, n_per, n_genes, field, sd_lib_sample, sd_lib_celltype, seed
-        As in `simulate_toy`.
-    beta : float
+    n_samples : int, default 6
+        Number of samples; as in `simulate_toy`.
+    n_per : int, default 80
+        Cells per sample; as in `simulate_toy`.
+    n_genes : int, default 20
+        Number of genes; as in `simulate_toy`.
+    field : float, default 500
+        Side length of the square spatial field; as in `simulate_toy`.
+    sd_lib_sample : float, default 0.15
+        Log-scale SD of the sample-level library-size term; as in `simulate_toy`.
+    sd_lib_celltype : float, default 0.35
+        Log-scale SD of the cell-type-level library-size term; as in `simulate_toy`.
+    beta : float, default 2.5
         Effect size of the planted B-niche association on G1 in A cells.
+    seed : int, default 1
+        Seed of the `numpy.random.default_rng` used for every draw.
 
     Returns
     -------
     anndata.AnnData
         As `simulate_toy` but `obs` has no `condition` column.
+
+    See Also
+    --------
+    simulate_toy : The version with a condition-specific effect.
+
+    Examples
+    --------
+    >>> from spidepy.datasets import simulate_niche
+    >>> adata = simulate_niche(n_samples=4, n_per=50, seed=1)
+    >>> adata.shape
+    (200, 20)
+    >>> "condition" in adata.obs.columns
+    False
     """
     rng = np.random.default_rng(seed)
     gene_names = [f"G{i}" for i in range(1, n_genes + 1)]
@@ -264,25 +309,50 @@ def simulate_clustered(
 ) -> AnnData:
     """Synthetic null with patient-level clustering.
 
-    Port of spiDE's internal `.toyClustered()` (dropped from R in c8db60a; kept here). A per-(gene, sample) intercept is shared by
-    every cell of a sample and there is no niche or condition effect; condition is a
+    Port of spiDE's internal `.toyClustered()` (dropped from R in c8db60a; kept here). A
+    per-(gene, sample) intercept is shared by every cell of a sample and there is no niche or condition effect; condition is a
     sample-level label, so a cell-level test is anti-conservative while a patient-level test
     stays calibrated. The generative model is R's; the random draws are not (numpy vs
     Mersenne-Twister), and the global numpy RNG is not touched. `obs` has no `Age`.
 
     Parameters
     ----------
-    n_samples, n_per, n_genes, field, sd_lib_sample, sd_lib_celltype, seed
-        As in `simulate_toy`.
-    sd_patient : float
+    n_samples : int, default 8
+        Number of samples; as in `simulate_toy`.
+    n_per : int, default 80
+        Cells per sample; as in `simulate_toy`.
+    n_genes : int, default 30
+        Number of genes; as in `simulate_toy`.
+    field : float, default 500
+        Side length of the square spatial field; as in `simulate_toy`.
+    sd_lib_sample : float, default 0.15
+        Log-scale SD of the sample-level library-size term; as in `simulate_toy`.
+    sd_lib_celltype : float, default 0.35
+        Log-scale SD of the cell-type-level library-size term; as in `simulate_toy`.
+    sd_patient : float, default 0.7
         Planted between-sample intercept SD.
-    sd_nested : float
+    sd_nested : float, default 0
         SD of an optional per-(gene, sample, cell type) intercept on top (drawn only if > 0).
+    seed : int, default 1
+        Seed of the `numpy.random.default_rng` used for every draw.
 
     Returns
     -------
     anndata.AnnData
         As `simulate_toy` but `obs` has no `Age` column.
+
+    See Also
+    --------
+    simulate_toy : The version with a planted effect.
+
+    Examples
+    --------
+    >>> from spidepy.datasets import simulate_clustered
+    >>> adata = simulate_clustered(n_samples=4, n_per=50, n_genes=10, seed=1)
+    >>> adata.shape
+    (200, 10)
+    >>> "Age" in adata.obs.columns
+    False
     """
     rng = np.random.default_rng(seed)
     gene_names = [f"G{i}" for i in range(1, n_genes + 1)]

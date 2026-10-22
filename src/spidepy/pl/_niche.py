@@ -150,15 +150,20 @@ def plot_niche_map(
         An index cell type to highlight.
     sigma : float, optional
         The bandwidth (needed only if `adata` carries several).
-    cell_type, sample_id : str
-        The `obs` columns of cell type and sample.
+    cell_type : str, default "cell_type"
+        The `obs` column of the cell type.
+    sample_id : str, default "sample_id"
+        The `obs` column of the sample.
     section : str, optional
         The `obs` column of the section; a sample with several sections gets one panel each.
-    name : str
+    name : str, default "Niche"
         The niche `obsm` prefix.
     point_size : float, optional
-        The point size in ggplot2 units (default: from the number of cells).
-    scale_bar : bool
+        The marker diameter in millimetres (1 mm is 2.85 points), which is converted to the
+        area `s` that `matplotlib.axes.Axes.scatter` takes; cells outside the `index` type are
+        drawn at 0.7 of it. Default: from the number of cells, `50 / sqrt(n_cells)` limited to
+        0.05-1.5 mm.
+    scale_bar : bool, default True
         Draw a scale bar of about a fifth of the width.
     unit : str, optional
         The coordinates' unit, for the scale bar's label (e.g. `"um"`).
@@ -167,6 +172,23 @@ def plot_niche_map(
     -------
     matplotlib.figure.Figure
         One panel per section, plus the colour bar's axes.
+
+    See Also
+    --------
+    build_niches : Builds the niche covariates drawn here.
+    plot_niche_response : Expression against the niche density.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> from spidepy import build_niches
+    >>> from spidepy.datasets import toy_spide
+    >>> from spidepy.pl import plot_niche_map
+    >>> adata = build_niches(toy_spide(), sigma=30)
+    >>> fig = plot_niche_map(adata, niche="B", sample="S1", index="A")
+    >>> type(fig).__name__
+    'Figure'
+    >>> plt.close(fig)
     """
     d = _niche_map_data(adata, niche, sample, index, sigma, cell_type, sample_id, section, name)
     if point_size is None:
@@ -508,22 +530,43 @@ def plot_niche_response(
         every patient's and group's line has the pooled slope.
     gene : str or sequence of str
         One or more genes, one panel each.
-    index, niche : str
-        The index and niche cell types.
-    adjust : bool
+    index : str
+        The index cell type.
+    niche : str
+        The niche cell type.
+    adjust : bool, default True
         Divide out each patient's intercept (see above).
-    bins : int
+    bins : int, default 8
         The number of density bins (`adjust=True`; bins are quantiles over all patients). Raw
         data use fifths of each patient's own density range.
-    assay : str
-        The counts assay.
-    name : str
+    assay : str, default "counts"
+        The counts layer.
+    name : str, default "Niche"
         The niche `obsm` prefix.
 
     Returns
     -------
     matplotlib.figure.Figure
         One panel per gene (a free log y axis each), with the condition and line legends.
+
+    See Also
+    --------
+    plot_patient_slopes : The patients' slopes behind a test.
+    plot_niche_map : The niche density in tissue.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> from spidepy import build_niches, fit_spide, test_spide
+    >>> from spidepy.datasets import toy_spide
+    >>> from spidepy.pl import plot_niche_response
+    >>> adata = build_niches(toy_spide(), sigma=30)
+    >>> fit = fit_spide(adata, condition="condition", verbose=False)
+    >>> res = test_spide(fit)
+    >>> fig = plot_niche_response(adata, res, gene="G1", index="A", niche="B")
+    >>> type(fig).__name__
+    'Figure'
+    >>> plt.close(fig)
     """
     D = _niche_response_data(adata, res, gene, index, niche, adjust, bins, assay, name)
     pb, genes, lv = D["data"], D["genes"], D["levels"]

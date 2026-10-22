@@ -137,10 +137,14 @@ def spi_gsea(
         Gene sets by name.
     test : {"pooled", "condition"} or list of them, optional
         The tests to run; default every test `res` holds.
-    type : {"competitive", "self-contained"}
-    min_size, max_size : int
-        Set size limits after intersecting with the genes tested in each index type.
-    n_jobs : int
+    type : {"competitive", "self-contained"}, default "competitive"
+        Whether the set's slope is compared with the other genes' (competitive) or taken alone
+        (self-contained).
+    min_size : int, default 5
+        Smallest set size, after intersecting with the genes tested in each index type.
+    max_size : int, default 500
+        Largest set size, after intersecting with the genes tested in each index type.
+    n_jobs : int, default 1
         Workers for the condition test (results do not depend on it).
 
     Returns
@@ -150,6 +154,24 @@ def spi_gsea(
         df, p, q` (Benjamini-Hochberg within the (index, niche, test) column), `q.global`
         (over every row of that test), `n_patients` and `direction`. The estimate is in units
         of the genes' between-patient spread. Empty when no set is usable.
+
+    See Also
+    --------
+    test_spide : The gene-level tests.
+    test_niche_abundance : The between-patient test, which also takes gene sets.
+
+    Examples
+    --------
+    >>> from spidepy import build_niches, fit_spide, spi_gsea, test_spide
+    >>> from spidepy.datasets import toy_spide
+    >>> fit = fit_spide(build_niches(toy_spide(), sigma=30), condition="condition", verbose=False)
+    >>> res = test_spide(fit)
+    >>> sets = {"first": ["G1", "G2", "G3", "G4", "G5"], "second": ["G6", "G7", "G8", "G9", "G10"]}
+    >>> gs = spi_gsea(res, sets)
+    >>> gs.shape
+    (24, 14)
+    >>> gs.columns.tolist()[:5]
+    ['set', 'index', 'niche', 'test', 'size']
     """
     if not isinstance(res, SpiDEResults):
         raise TypeError("'res' should be a SpiDEResults from test_spide() or spide()")

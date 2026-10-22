@@ -182,18 +182,41 @@ def plot_call_map(
     Parameters
     ----------
     res : SpiDEResults
+        The results to summarise.
     test : {"pooled", "condition"}, optional
         Default: the condition-specific test if run, else the pooled test.
     fdr : float, optional
         The q-value threshold of a call (default: the results').
-    style : {"heatmap", "graph"}
-    min_calls : int
-        The graph's smallest drawn edge.
+    style : {"heatmap", "graph"}, default "heatmap"
+        How the counts are drawn: a grid of index types by niche types (`"heatmap"`), or cell
+        types on a circle joined by arrows from niche to index type (`"graph"`).
+    min_calls : int, default 1
+        The graph's smallest drawn edge, in genes; pairs with fewer calls get no arrow
+        (`style="graph"` only).
 
     Returns
     -------
     matplotlib.figure.Figure
         Two panels, one per direction.
+
+    See Also
+    --------
+    plot_spillover : Checks whether the calls are the niche type's own markers.
+    plot_top_triplets : The strongest individual calls.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> from spidepy import build_niches, fit_spide, test_spide
+    >>> from spidepy.datasets import toy_spide
+    >>> from spidepy.pl import plot_call_map
+    >>> adata = build_niches(toy_spide(), sigma=30)
+    >>> fit = fit_spide(adata, condition="condition", verbose=False)
+    >>> res = test_spide(fit)
+    >>> fig = plot_call_map(res, style="graph")
+    >>> type(fig).__name__
+    'Figure'
+    >>> plt.close(fig)
     """
     check_results(res, "plot_call_map()")
     st = _match_arg(style, ("heatmap", "graph"), "style")
@@ -380,24 +403,51 @@ def plot_top_triplets(
     Parameters
     ----------
     res : SpiDEResults
+        The results to plot.
     test : {"pooled", "condition"}, optional
         Default: the condition-specific test if run, else the pooled test.
-    n : int
+    n : int, default 30
         The number of triplets.
-    gene, index, niche : str or sequence of str, optional
-        Filters.
+    gene : str or sequence of str, optional
+        Keep only these genes.
+    index : str or sequence of str, optional
+        Keep only these index cell types.
+    niche : str or sequence of str, optional
+        Keep only these niche cell types.
     adata : anndata.AnnData, optional
         The object the results came from, for the niche-marker flag.
-    fold : float
-        The niche-marker threshold.
+    fold : float, default 4
+        The niche-marker threshold, as a fold change.
     fdr : float, optional
         The q-value threshold of a call (default: the results').
-    assay, name : str
-        The counts layer and the niche `obsm` prefix.
+    assay : str, default "counts"
+        The counts layer (used with `adata`).
+    name : str, default "Niche"
+        The niche `obsm` prefix (used with `adata`).
 
     Returns
     -------
     matplotlib.figure.Figure
+        A forest plot, one row per triplet.
+
+    See Also
+    --------
+    plot_spillover : The niche-marker check in full.
+    plot_triplet_heatmap : Profiles across every cell-type pair.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> from spidepy import build_niches, fit_spide, test_spide
+    >>> from spidepy.datasets import toy_spide
+    >>> from spidepy.pl import plot_top_triplets
+    >>> adata = build_niches(toy_spide(), sigma=30)
+    >>> fit = fit_spide(adata, condition="condition", verbose=False)
+    >>> res = test_spide(fit)
+    >>> fig = plot_top_triplets(res, n=10, adata=adata)
+    >>> type(fig).__name__
+    'Figure'
+    >>> plt.close(fig)
     """
     check_results(res, "plot_top_triplets()")
     test = _resolve_test(res, test)
@@ -558,21 +608,45 @@ def plot_spillover(
     Parameters
     ----------
     res : SpiDEResults
+        The results to plot.
     adata : anndata.AnnData
         The object the results came from.
-    test : {"pooled", "condition"}
-    fold : float
-        The niche-marker threshold (shaded).
-    label : int
+    test : {"pooled", "condition"}, default "pooled"
+        Which test's triplets to place.
+    fold : float, default 4
+        The niche-marker threshold, as a fold change (shaded).
+    label : int, default 6
         The number of markers labelled (strongest first).
     fdr : float, optional
         The q-value threshold of a call (default: the results').
-    assay, name : str
-        The counts layer and the niche `obsm` prefix.
+    assay : str, default "counts"
+        The counts layer.
+    name : str, default "Niche"
+        The niche `obsm` prefix.
 
     Returns
     -------
     matplotlib.figure.Figure
+        One panel of log2 fold (niche type over index type) against signed z.
+
+    See Also
+    --------
+    plot_call_map : Which cell-type pairs carry the calls.
+    plot_top_triplets : Flags niche markers on the strongest triplets.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> from spidepy import build_niches, fit_spide, test_spide
+    >>> from spidepy.datasets import toy_spide
+    >>> from spidepy.pl import plot_spillover
+    >>> adata = build_niches(toy_spide(), sigma=30)
+    >>> fit = fit_spide(adata, condition="condition", verbose=False)
+    >>> res = test_spide(fit)
+    >>> fig = plot_spillover(res, adata, test="pooled")
+    >>> type(fig).__name__
+    'Figure'
+    >>> plt.close(fig)
     """
     D = _spillover_data(res, adata, test, fold, label, fdr, assay, name)
     test = _resolve_test(res, test)
@@ -753,19 +827,38 @@ def plot_triplet_heatmap(
         show.
     test : {"pooled", "condition"}, optional
         Default: the condition-specific test if present, else the pooled test.
-    n : int
+    n : int, default 30
         The number of features when `features` is `None`.
     fdr : float, optional
         The q-value threshold of a call (default: the results', or 0.05 for sets).
     limit : float, optional
         The |t| at which the fill saturates (default: the 98th percentile, at least 1).
-    cluster : bool
+    cluster : bool, default True
         Order rows by hierarchical clustering of their t profiles.
 
     Returns
     -------
     matplotlib.figure.Figure
         One panel per index type.
+
+    See Also
+    --------
+    spi_gsea : Produces the gene-set table this also draws.
+    plot_top_triplets : The strongest triplets with intervals.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> from spidepy import build_niches, fit_spide, test_spide
+    >>> from spidepy.datasets import toy_spide
+    >>> from spidepy.pl import plot_triplet_heatmap
+    >>> adata = build_niches(toy_spide(), sigma=30)
+    >>> fit = fit_spide(adata, condition="condition", verbose=False)
+    >>> res = test_spide(fit)
+    >>> fig = plot_triplet_heatmap(res, n=10)
+    >>> type(fig).__name__
+    'Figure'
+    >>> plt.close(fig)
     """
     D = _triplet_heatmap_data(x, features, test, n, fdr, limit, cluster)
     tab, ord_, nt, lim = D["data"], D["order"], D["untested"], D["limit"]
@@ -905,13 +998,32 @@ def plot_p_values(res, bands: int = 5) -> Figure:
     Parameters
     ----------
     res : SpiDEResults
-    bands : int
+        The results whose p-values are shown.
+    bands : int, default 5
         The number of expression bands.
 
     Returns
     -------
     matplotlib.figure.Figure
         One row per test, one column per expression band.
+
+    See Also
+    --------
+    plot_top_triplets : The strongest triplets.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> from spidepy import build_niches, fit_spide, test_spide
+    >>> from spidepy.datasets import toy_spide
+    >>> from spidepy.pl import plot_p_values
+    >>> adata = build_niches(toy_spide(), sigma=30)
+    >>> fit = fit_spide(adata, condition="condition", verbose=False)
+    >>> res = test_spide(fit)
+    >>> fig = plot_p_values(res, bands=3)
+    >>> type(fig).__name__
+    'Figure'
+    >>> plt.close(fig)
     """
     D = _p_values_data(res, bands)
     tab, uni = D["data"], D["uni"]
