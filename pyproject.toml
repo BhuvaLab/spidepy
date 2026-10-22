@@ -55,6 +55,8 @@ exclude = ["tests/ref/data", "tests/ref/Rlib", ".superpowers", "docs/superpowers
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# docstring examples: `pytest --doctest-modules src/spidepy`
+doctest_optionflags = ["NORMALIZE_WHITESPACE", "ELLIPSIS", "NUMBER"]
 
 [tool.ruff]
 line-length = 100

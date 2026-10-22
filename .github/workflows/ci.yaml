@@ -41,3 +41,7 @@ jobs:
       # Reference values are committed (tests/ref/data); no R or network access is needed.
       - name: Test
         run: pytest -q
+
+      # The Examples of the public docstrings (they are rendered on the website) must run.
+      - name: Doctest
+        run: pytest -q --doctest-modules src/spidepy
