@@ -1,6 +1,6 @@
 # R to Python mapping
 
-Every export of R spiDE 0.99.37 (commit `e31e744`, `NAMESPACE`) and its spidepy counterpart. The
+Every export of R spiDE 0.99.37 (commit `c8db60a`, `NAMESPACE`) and its spidepy counterpart. The
 `NAMESPACE` also exports the `$` method of the result classes; in Python that is plain attribute access
 (`res.contrast`, `fit.engine`).
 
@@ -20,7 +20,6 @@ Arguments are snake_case with R's defaults.
 | `object` | `res` or `fit` (the result or fit object) |
 | `min.cells`, `min.patients`, `min.detect`, `min.tiles` | `min_cells`, `min_patients`, `min_detect`, `min_tiles` |
 | `min.size`, `max.size` | `min_size`, `max_size` |
-| `pooled.df` | `pooled_df` |
 | `prior.count`, `max.leverage` | `prior_count`, `max_leverage` |
 | `min.calls`, `colour.by`, `n.pcs`, `point.size`, `scale.bar` | `min_calls`, `colour_by`, `n_pcs`, `point_size`, `scale_bar` |
 | `BPPARAM` | `n_jobs` (an integer; results are identical for any value) |
@@ -49,8 +48,8 @@ Python reads like one from R. The differences between the two packages, with rea
 | `plotTopTriplets` | `spidepy.pl.plot_top_triplets` | matplotlib; returns a `Figure` |
 | `plotTripletHeatmap` | `spidepy.pl.plot_triplet_heatmap` | matplotlib; returns a `Figure` |
 | `results` | `spidepy.results` | returns a `DataFrame` |
-| `spiDE` | `spidepy.spide` | extra fit options pass through `**fit_kwargs`; the niche matrix it builds is removed again |
-| `spiDEColours` | `spidepy.pl.spide_colours` | the same colour-blind-safe palettes |
+| `spiDE` | `spidepy.spide` | extra fit options pass through `**fit_kwargs`; `name` is the niche key prefix; the niche matrix it builds is removed again |
+| `spiDEColours` | `spidepy.pl.spide_colours` | the same colour-blind-safe palettes (palette V, with the `"spatial"` role) |
 | `spiGSEA` | `spidepy.spi_gsea` | `genesets` is a dict of set name to gene list; exact argument values only |
 | `testNicheAbundance` | `spidepy.test_niche_abundance` | returns a `DataFrame` |
 | `testSpiDE` | `spidepy.test_spide` | returns a `SpiDEResults` |

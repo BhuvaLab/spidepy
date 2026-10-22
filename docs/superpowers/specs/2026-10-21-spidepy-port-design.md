@@ -5,7 +5,7 @@ Date: 2026-10-21. Status: approved by the user (scope, dependency, repo and mode
 ## Goal
 
 A faithful Python port of the R package **spiDE 0.99.37** (repo `/scratch/project_mnt/S0249/R_projects/spiDE`,
-commit `e31e744`; the package files are unchanged since `7fc6979`). Same statistics, same defaults, same
+commit `c8db60a`, synced from `e31e744` on 2026-10-22). Same statistics, same defaults, same
 numbers as R to tight tolerance, on `AnnData` input. Modelled on the earlier spanormpy port of SpaNorm
 (`/scratch/project_mnt/S0249/R_projects/spanormpy`), whose conventions, reference harness and process we reuse.
 
@@ -67,7 +67,7 @@ files), S4 `show` beyond a readable `__repr__`, BiocParallel specifics.
 
 ## Accuracy contract
 
-- References come from R: spiDE `e31e744` and SpaNorm `f233b7b` (1.7.16, what spanormpy ports) installed
+- References come from R: spiDE `c8db60a` and SpaNorm `f233b7b` (1.7.16, what spanormpy ports) installed
   into `tests/ref/Rlib` (git-ignored), written as HDF5 by `tests/ref/make_<topic>.R`, read by
   `tests/_ref.py::load_ref` (same harness as spanormpy).
 - Tolerances: closed-form steps `rtol=1e-10, atol=1e-12`; anything downstream of an iterative fit given

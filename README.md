@@ -8,7 +8,7 @@ spidepy asks whether a gene's expression changes with the local density (the nic
 and whether that dependence differs between two conditions. The patient is the unit of replication. It
 operates on `AnnData`.
 
-Version 0.1.0 (alpha). Ports spiDE 0.99.37 (R commit `e31e744`); see [CHANGELOG.md](CHANGELOG.md).
+Version 0.1.0 (alpha). Ports spiDE 0.99.37 (R commit `c8db60a`); see [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 

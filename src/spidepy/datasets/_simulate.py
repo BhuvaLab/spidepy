@@ -217,7 +217,7 @@ def simulate_niche(
 ) -> AnnData:
     """Synthetic spatial data set with a condition-free neighbourhood effect.
 
-    Port of spiDE's internal ``.toyNiche()``. Like :func:`simulate_toy`, but gene ``G1`` in
+    Port of spiDE's internal ``.toyNiche()`` (dropped from R in c8db60a; kept here). Like :func:`simulate_toy`, but gene ``G1`` in
     index cell type "A" rises with the local density of niche cell type "B" in every cell, and
     there is no ``condition`` column, so it can only be analysed in the condition-free mode.
     The generative model is R's; the random draws are not (numpy vs Mersenne-Twister), and the
@@ -264,7 +264,7 @@ def simulate_clustered(
 ) -> AnnData:
     """Synthetic null with patient-level clustering.
 
-    Port of spiDE's internal ``.toyClustered()``. A per-(gene, sample) intercept is shared by
+    Port of spiDE's internal ``.toyClustered()`` (dropped from R in c8db60a; kept here). A per-(gene, sample) intercept is shared by
     every cell of a sample and there is no niche or condition effect; condition is a
     sample-level label, so a cell-level test is anti-conservative while a patient-level test
     stays calibrated. The generative model is R's; the random draws are not (numpy vs

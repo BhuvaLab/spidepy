@@ -1,6 +1,6 @@
 # Differences from R spiDE
 
-One bullet per item: what R does, what spidepy does, and why. Reference: spiDE 0.99.37 (`e31e744`). Where R has a bug or an R-specific accident, spidepy matches R and logs it here. Items are grouped by area.
+One bullet per item: what R does, what spidepy does, and why. Reference: spiDE 0.99.37 (`c8db60a`). Where R has a bug or an R-specific accident, spidepy matches R and logs it here. Items are grouped by area.
 
 ## Interface
 
@@ -12,13 +12,13 @@ One bullet per item: what R does, what spidepy does, and why. Reference: spiDE 0
   and removes it from `adata.obsm` once the fit is done. A niche matrix already present is used
   and kept.
 - **`spiGSEA` argument matching.** R's `match.arg` accepts unambiguous prefixes (`type = "self"`,
-  `test = "pool"`, `pooled.df = "prop"`). `spi_gsea` takes exact values only, as `test_spide`
+  `test = "pool"`). `spi_gsea` takes exact values only, as `test_spide`
   does; an unknown value raises `ValueError`. Also `spi_gsea` refuses anything but a
   `SpiDEResults` with a `TypeError` (R dispatches and errors on the missing method).
 - **`spiGSEA` direction of a missing statistic.** R writes `NA_character_`; `spi_gsea` uses
   `None` in the `direction` column (object dtype).
 - **Result and fit objects.** R stores `character(0)` where Python has `None`: `SpiDEFit.condition` when no
-  condition was given, and `SpiDEResults.pooled_df` for the sandwich engine, which has no pooled test; `SpiDEResults.condition` is `None` when no condition was tested, and `contrast` is `""` then.
+  condition was given; `SpiDEResults.condition` is `None` when no condition was tested, and `contrast` is `""` then.
 - **Legacy-object guard.** R's `checkResults` also rejects pre-0.99.23 mixed-model objects
   (`.assertCurrent`). Not ported: spidepy has no such objects.
 - **Strata that vary within a patient.** R's `fitSpiDE` reads `as.character(patients[[strata]])`;
@@ -133,6 +133,11 @@ One bullet per item: what R does, what spidepy does, and why. Reference: spiDE 0
   from R's SpatialExperiment) with plain-string `sample_id`, `condition` and `cell_type` and float
   counts. `toy_spide()` is R's own `toySpiDE` object, not a simulation; its text columns are
   returned as strings rather than the categories stored in the bundled file.
+- **`.toyNiche()` and `.toyClustered()` are gone from R.** R dropped the originals of these two
+  internal simulators in c8db60a (the simplification pass). spidepy keeps their ports,
+  `simulate_niche()` and `simulate_clustered()`, as public toy-data helpers; they no longer have an
+  R original to be compared with, and `simulate_toy()` (R's `.toySPE()`) is still the one with a
+  counterpart.
 
 ## Plots
 
