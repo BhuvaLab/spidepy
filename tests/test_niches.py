@@ -212,32 +212,20 @@ def test_resolve_members():
 # ------------------------------- _is_self_niche -------------------------------
 
 
-def _na(v):
-    return [None if s == "NA" else s for s in np.atleast_1d(v)]
-
-
 def test_is_self_niche_cases(R):
     s = R["selfn"]
     gmap = {"AC": ["A", "C"], "B": ["B"], "T m": ["T-cell", "x y"]}
-    c1 = s["c1"]
-    np.testing.assert_array_equal(
-        _is_self_niche(_na(c1["index"]), _na(c1["niche"])), np.asarray(c1["res"], bool)
-    )
-    c2 = s["c2"]
-    np.testing.assert_array_equal(
-        _is_self_niche(c2["index"], c2["niche"], gmap), np.asarray(c2["res"], bool)
-    )
-    np.testing.assert_array_equal(
-        _is_self_niche(c2["index"], c2["niche"]), np.asarray(c2["res_null"], bool)
-    )
-    c3 = s["c3"]  # niche name is itself a member; names and members sanitised
-    np.testing.assert_array_equal(
-        _is_self_niche(c3["index"], c3["niche"], gmap), np.asarray(c3["res"], bool)
-    )
-    assert list(s["gmap_names"]) == list(gmap)
+    index, niches = list(np.atleast_1d(s["index"])), list(np.atleast_1d(s["niches"]))
+    res, res_null = np.asarray(s["res"], bool), np.asarray(s["res_null"], bool)
+    assert res.shape == (len(index), len(niches))
+    for i, k in enumerate(index):
+        np.testing.assert_array_equal(_is_self_niche(k, niches, gmap), res[i], err_msg=k)
+        np.testing.assert_array_equal(_is_self_niche(k, niches), res_null[i], err_msg=k)
+    assert list(np.atleast_1d(s["gmap_names"])) == list(gmap)
 
 
-def test_is_self_niche_nan_and_empty():
-    out = _is_self_niche(["A", np.nan, "B"], ["A", "A", None])
-    assert out.tolist() == [True, False, False]
-    assert _is_self_niche([], []).shape == (0,)
+def test_is_self_niche_sanitises_and_handles_empty():
+    # a merged label already used as the index label; names and members are sanitised
+    assert _is_self_niche("T cell", ["T.cell", "B"]).tolist() == [True, False]
+    assert _is_self_niche("A", ["AC", "A"], {"AC": ["A", "C"]}).tolist() == [True, True]
+    assert _is_self_niche("A", []).shape == (0,)

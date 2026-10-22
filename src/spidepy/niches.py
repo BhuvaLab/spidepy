@@ -233,32 +233,28 @@ def merge_niches(
     return adata
 
 
-def _is_self_niche(index, niche, group_map: dict | None = None) -> np.ndarray:
-    """Which interaction columns pair an index cell type with its own niche (R ``.isSelfNiche``).
+def _is_self_niche(index: str, niches, group_map: dict | None = None) -> np.ndarray:
+    """Which niche columns are the index type's own niche (R ``.isSelfNiche``).
 
     Parameters
     ----------
-    index, niche : sequence of str
-        Sanitised index / niche cell type of each design column (missing for non-interaction
-        columns).
+    index : str
+        A single index cell type.
+    niches : sequence of str
+        Niche column names.
     group_map : dict, optional
-        Merged niche column -> fine members (raw names, sanitised here). A niche absent from it
-        has the member set ``{itself}``; the niche's own name is always a member.
+        Merged niche column -> fine members (raw names). Names and members are sanitised here
+        before matching. A niche absent from it has the member set ``{itself}``; the niche's own
+        name is always a member.
 
     Returns
     -------
     numpy.ndarray of bool
-        ``True`` where the column is to be dropped.
+        ``True`` where the niche column is the index type's own.
     """
     san_map: dict[str, list[str]] = {}
     for k, v in (group_map or {}).items():
         san_map.setdefault(sanitise(str(k)), sanitise([str(m) for m in np.atleast_1d(v)]))
-
-    index = list(index)
-    niche = list(niche)
-    res = np.zeros(len(index), dtype=bool)
-    for k, (i, n) in enumerate(zip(index, niche)):
-        if _is_missing(i) or _is_missing(n):
-            continue
-        res[k] = i == n or i in san_map.get(n, ())
-    return res
+    index = sanitise(str(index))
+    nm = sanitise([str(n) for n in niches])
+    return np.array([index == n or index in san_map.get(n, ()) for n in nm], dtype=bool)

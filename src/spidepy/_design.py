@@ -22,7 +22,7 @@ from spanormpy._block_design import NBBlockDesign, nb_block_design
 from spanormpy._tps import _ns_eval, _ns_knots, tps_basis
 
 from ._io import as_character_array, niche_keys
-from ._rcompat import r_num_str, r_sort_str, sanitise
+from ._rcompat import r_num_str, r_sort_str
 from .niches import _is_self_niche
 
 _EPS = np.finfo(float).eps
@@ -93,10 +93,7 @@ def _niche_columns(NM: pd.DataFrame, k: str, ik, niche=None, group_map=None) -> 
     intersection with ``niche`` (in the order of ``cols``).
     """
     nm = [str(c) for c in NM.columns]
-    if len(nm):
-        self_ = _is_self_niche([sanitise(k)] * len(nm), sanitise(nm), group_map)
-    else:
-        self_ = np.zeros(0, dtype=bool)
+    self_ = _is_self_niche(k, nm, group_map)
     cols = [c for c, s in zip(nm, self_) if not s]
     if cols:
         with np.errstate(invalid="ignore"):

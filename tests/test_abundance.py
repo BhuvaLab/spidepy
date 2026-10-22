@@ -338,6 +338,32 @@ def test_verbose_reports_on_stderr(adata, capsys):
     assert capsys.readouterr().err == ""
 
 
+def test_merged_niche_is_not_tested_against_its_members_matches_r(adata, R):
+    m = spidepy.merge_niches(adata.copy(), {"AC": ["A", "C"]}, sigma=50)
+    got = spidepy.test_niche_abundance(m, condition="condition", sigma=50, verbose=False)
+    _table_equal(got, R["merged"]["all"], "merged all")
+    assert not ((got["index"] == "A") & (got["niche"] == "AC")).any()
+    assert not ((got["index"] == "C") & (got["niche"] == "AC")).any()
+    # B is not a member of AC, so its pair with the merged niche stays
+    assert ((got["index"] == "B") & (got["niche"] == "AC")).any()
+    a = spidepy.test_niche_abundance(m, condition="condition", sigma=50, index="A", verbose=False)
+    _table_equal(a, R["merged"]["idx_A"], "merged index A")
+    assert "AC" not in set(a["niche"]) and "B" in set(a["niche"])
+
+
+def test_labels_keep_their_original_spelling_matches_r(adata, R):
+    r = R["relabel"]
+    a = adata.copy()
+    a.obs["cell_type"] = np.asarray(r["cell_type"], dtype=object)
+    a.obsm["Niche50"] = pd.DataFrame(
+        np.asarray(r["niche50"], float), index=a.obs_names, columns=strs(r["niche_cols"])
+    )
+    got = spidepy.test_niche_abundance(a, condition="condition", sigma=50, verbose=False)
+    _table_equal(got, r["table"], "relabel")
+    assert set(got["index"]) == {"T cell", "B-cell", "C"} == set(got["niche"])
+    assert not (got["index"] == got["niche"]).any()
+
+
 # ---- test-niche-abundance.R -----------------------------------------------------------------
 def test_tidy_schema(adata_py):
     ct = spidepy.test_niche_abundance(adata_py, condition="condition", sigma=50, verbose=False)

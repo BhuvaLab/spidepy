@@ -24,10 +24,11 @@ from ._checks import (
     check_niche,
 )
 from ._design import _factor_codes
-from ._io import get_counts, get_niche, get_obs, niche_key
+from ._io import get_counts, get_group_map, get_niche, get_obs, niche_key
 from ._limma import _dqrdc2_rank, e_bayes, lm_fit
 from ._rcompat import p_adjust_bh, r_sort_str
 from .fit import _match_arg
+from .niches import _is_self_niche
 
 _TYPES = ("competitive", "self-contained")
 
@@ -362,7 +363,8 @@ def test_niche_abundance(
     sigma : float
         The niche bandwidth (one value).
     index, niche : str or sequence of str, optional
-        Restrict the index / niche cell types. An index type is never tested against itself.
+        Restrict the index / niche cell types. An index type is never tested against its own
+        niche: itself, or the merged niche it is a member of (see :func:`~spidepy.merge_niches`).
     covariates : str or sequence of str
         Sample-level ``obs`` columns to adjust for (first non-missing value per sample).
     assay, cell_type, sample_id, name : str
@@ -413,12 +415,23 @@ def test_niche_abundance(
         raise ValueError("'sigma' must be a single bandwidth")
     check_niche(adata, sigma, name=name)
 
-    ct = _sanitise_array(get_obs(adata, cell_type))
+    ct_raw = get_obs(adata, cell_type)
+    ct = _sanitise_array(ct_raw)
+    # sanitised -> original labels (the first of each), so the output reads as fit_spide's does
+    ct_lab: dict = {}
+    for r, c in zip(np.asarray(ct_raw, dtype=object), ct):
+        if pd.notna(c):
+            ct_lab.setdefault(c, r)
     smp = get_obs(adata, sample_id)
     Y = get_counts(adata, assay)
     genes = np.asarray(adata.var_names, dtype=object)
-    NM = get_niche(adata, niche_key(name, float(sigma))).copy()
+    nkey = niche_key(name, float(sigma))
+    NM = get_niche(adata, nkey).copy()
+    nm_lab: dict = {}
+    for r, c in zip(list(NM.columns), _sanitise_array(NM.columns)):
+        nm_lab.setdefault(c, r)
     NM.columns = _sanitise_array(NM.columns)
+    group_map = get_group_map(adata, nkey)
     NM_cols = list(NM.columns)
     niches = NM_cols if niche is None else _intersect(_sanitise_array(_as_list(niche)), NM_cols)
     if not niches:
@@ -446,10 +459,13 @@ def test_niche_abundance(
             if sc is None:
                 continue
             Yk, names_k = sc["S"], sc["sets"]
-        for n in [x for x in niches if x != k]:
+        # an index type is never tested against its own niche, merged or not
+        own = _is_self_niche(ct_lab[k], [nm_lab[x] for x in niches], group_map)
+        for n in [x for x, s in zip(niches, own) if not s]:
             if verbose:
                 print(
-                    f"test_niche_abundance: {k} x {n} ({len(b['samples'])} samples)",
+                    f"test_niche_abundance: {ct_lab[k]} x {nm_lab[n]} "
+                    f"({len(b['samples'])} samples)",
                     file=sys.stderr,
                 )
             df = pd.DataFrame({"niche": b["niche"].loc[b["samples"], n].to_numpy(dtype=float)})
@@ -466,7 +482,7 @@ def test_niche_abundance(
                 d = {"set" if sc is not None else "gene": names_k}
                 if sc is not None:
                     d["size"] = sc["size"]
-                d.update(index=k, niche=n, term=tm, estimate=v["estimate"], t=v["t"], p=v["p"],
+                d.update(index=ct_lab[k], niche=nm_lab[n], term=tm, estimate=v["estimate"], t=v["t"], p=v["p"],
                          n_patients=r["n"], leverage=r["leverage"],
                          downweighted=r["downweighted"])  # fmt: skip
                 rows.append(pd.DataFrame(d))
