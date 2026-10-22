@@ -1,6 +1,6 @@
 # Task 10 references: the tests across patients. Every helper of test-slopes.R on R's own inputs
 # (the fits written below, so Python feeds them R's slopes, not its own), testSpiDE tables for every
-# procedure and both pooled.df rules, both engines, with strata and with a patient dropped for one
+# procedure, both engines, with strata and with a patient dropped for one
 # index type, spiDE() end to end, results() and show(). Run from the repo root.
 source("tests/ref/_common.R")
 
@@ -30,8 +30,7 @@ dump_in <- function(fit) {
 }
 dump_res <- function(r) {
   list(table = dump_df(r@table), condition = if (length(r@condition)) r@condition else "",
-       contrast = if (length(r@contrast)) r@contrast else "", procedure = r@procedure, fdr = r@fdr,
-       pooled_df = if (length(r@pooled.df)) r@pooled.df else "")
+       contrast = if (length(r@contrast)) r@contrast else "", procedure = r@procedure, fdr = r@fdr)
 }
 
 # helpers on a slopes fit's own arrays
@@ -52,9 +51,7 @@ dump_helpers <- function(fit, condition = NULL, strata = NULL) {
       b <- matrix(x$beta[, , j], nrow = G); v <- matrix(vp[, , j], nrow = G)
       cj <- list(
         pooled_prop = dump_df(spiDE:::.pooledColumnTest(b, v, tau[, j], x$mean_expr)),
-        pooled_cap = dump_df(spiDE:::.pooledColumnTest(b, v, tau[, j], x$mean_expr, df.rule = "capped")),
-        pooled_flat = dump_df(spiDE:::.pooledColumnTest(b, v, tau[, j], x$mean_expr, trend = FALSE)),
-        kish = spiDE:::.kishDf(1 / (v + tau[, j]), b, 1L))
+        pooled_flat = dump_df(spiDE:::.pooledColumnTest(b, v, tau[, j], x$mean_expr, trend = FALSE)))
       if (!is.null(trt)) {
         cj$cond <- dump_df(spiDE:::.robustConditionTest(b, v, tau[, j], trt = trt))
         if (!is.null(st) && length(unique(st)) > 1L)
@@ -67,18 +64,15 @@ dump_helpers <- function(fit, condition = NULL, strata = NULL) {
   out
 }
 
-variants <- function(fit, condition, procs = c("pooled_or_heterogeneity", "heterogeneity", "filtered", "all"),
-                     dfs = c("proportional", "capped"), ...) {
+variants <- function(fit, condition, procs = c("pooled_or_heterogeneity", "heterogeneity", "filtered", "all"), ...) {
   out <- list()
-  for (p in procs) for (d in dfs)
-    out[[paste(p, d, sep = "__")]] <- dump_res(testSpiDE(fit, condition = condition, procedure = p,
-                                                         pooled.df = d, ...))
+  for (p in procs) out[[p]] <- dump_res(testSpiDE(fit, condition = condition, procedure = p, ...))
   out
 }
 
 cfg <- list()
 
-# 16 patients x 12 genes, index A: all procedures x both df rules; no recorded condition
+# 16 patients x 12 genes, index A: all procedures; no recorded condition
 f16 <- fitSpiDE(spe16, index = "A", sigma = 30, verbose = FALSE)
 cfg$sl16 <- list(fit = dump_in(f16), helpers = dump_helpers(f16, "condition"),
                  default = dump_res(testSpiDE(f16, condition = "condition")),
@@ -92,14 +86,12 @@ cfg$sl16$results <- list(
   pooled_fdr = dump_df(results(r16, test = "pooled", fdr = 0.05)), fdr1 = dump_df(results(r16, fdr = 1)),
   nocond = dump_df(results(testSpiDE(f16))))
 cfg$sl16$show <- capture.output(show(r16))
-cfg$sl16$show_capped <- capture.output(show(testSpiDE(f16, condition = "condition", procedure = "filtered",
-                                                     pooled.df = "capped")))
 
 # the toy fixture, all index types, the condition recorded and slide strata recorded
 ft <- fitSpiDE(spe, condition = "condition", strata = "slide", sigma = 30, verbose = FALSE)
 cfg$toy_strata <- list(fit = dump_in(ft), helpers = dump_helpers(ft, "condition", "slide"),
                        default = dump_res(testSpiDE(ft)),
-                       variants = variants(ft, NULL, procs = c("heterogeneity", "all"), dfs = "proportional"))
+                       variants = variants(ft, NULL, procs = c("heterogeneity", "all")))
 # strata named at test time on a fit without them
 ft0 <- fitSpiDE(spe, sigma = 30, verbose = FALSE)
 cfg$toy_testtime <- list(fit = dump_in(ft0),
@@ -143,9 +135,8 @@ b[1, 1:2] <- NA
 tau <- rep(0.01, G)
 cfg$family <- list(b = b, v = v, tau = tau, mean_expr = mean_expr,
                    prop = dump_df(spiDE:::.pooledColumnTest(b, v, tau, mean_expr)),
-                   cap = dump_df(spiDE:::.pooledColumnTest(b, v, tau, mean_expr, df.rule = "capped")),
                    flat = dump_df(spiDE:::.pooledColumnTest(b, v, tau, mean_expr, trend = FALSE)),
-                   kish = spiDE:::.kishDf(1 / (v + tau), b, 1L),
+                   kish = spiDE:::.kishN(ifelse(is.finite(b), 1 / (v + tau), NA_real_)),
                    tau_fam = spiDE:::.dlTau2(array(b, c(G, S, 1)), array(v, c(G, S, 1)))[, 1],
                    het_fam = spiDE:::.heterogeneityP(array(b, c(G, S, 1)), array(v, c(G, S, 1)))[, 1])
 # unusable patients and heavy weights in the condition test (test-engine.R)
@@ -165,8 +156,8 @@ cfg$e2e <- list(
   sandwich = dump_res(spiDE(sp7, condition = "condition", sigma = 30, index = "A", engine = "sandwich",
                             procedure = "all", verbose = FALSE)),
   toy_default = dump_res(spiDE(toySpiDE, condition = "condition", sigma = 30, verbose = FALSE)),
-  toy_capped = dump_res(spiDE(toySpiDE, condition = "condition", sigma = 30, index = "A",
-                              procedure = "heterogeneity", pooled.df = "capped", fdr = 0.1, verbose = FALSE)))
+  toy_het = dump_res(spiDE(toySpiDE, condition = "condition", sigma = 30, index = "A",
+                           procedure = "heterogeneity", fdr = 0.1, verbose = FALSE)))
 
 # the fit behind the end-to-end slopes table, for the helpers on R's own inputs
 f7 <- fitSpiDE(buildNiches(sp7, sigma = 30, verbose = FALSE), condition = "condition", sigma = 30, index = "A",

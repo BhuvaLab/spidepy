@@ -59,7 +59,7 @@ run <- function(nm, L_, tl, min.cells = 10L, min.tiles = 5L) {
     ps <- spiDE:::.patientSlopes(fit, c0$des, Yk, L_, tl, min.cells = min.cells, min.tiles = min.tiles,
                                  offset = c0$off)
     r[[cn]] <- list(beta = unname(ps$beta), v_tile = unname(ps$v_tile), v_model = unname(ps$v_model),
-                    pooled = unname(ps$pooled), ncells = unname(ps$ncells),
+                    pooled = unname(ps$pooled),
                     factor = unname(spiDE:::.patientFactor(ps$v_tile, ps$v_model)),
                     patients = dimnames(ps$beta)[[2]], niches = dimnames(ps$beta)[[3]])
   }

@@ -172,7 +172,7 @@ run_cfg <- function(depth, covariates, trt = NULL, strata = NULL, offset = FALSE
   for (g in c(1L, 3L)) {
     o <- if (offset) Ok[g, ] else 0
     wr <- spiDE:::.workingWR(Yk[g, ], des$W, fit$alpha[g, ], fit$psi[g], o)
-    res[[paste0("wr", g)]] <- list(w = wr$w, r = wr$r, mu = wr$mu)
+    res[[paste0("wr", g)]] <- list(w = wr$w, r = wr$r)
     res[[paste0("lp", g)]] <- spiDE:::.linPred(des$W, fit$alpha[g, ])
   }
   # partialBlock on patient 2's rows, weights from G1

@@ -84,20 +84,16 @@ merge$quirk_ok <- as.integer(!inherits(m3e, "try-error"))
 merge$quirk_foo_cols <- colnames(reducedDim(m3e, "NicheFoo"))
 merge$quirk_gm_names <- names(S4Vectors::metadata(m3e)$spiDE_niche_groups)
 
-# --- .isSelfNiche ---
+# --- .isSelfNiche (a scalar index against a vector of niche columns) ---
 isn <- spiDE:::.isSelfNiche
-selfn <- list(
-  c1 = list(index = c("A", "B", NA, "A", "C"), niche = c("A", "A", "A", NA, "C")),
-  c2 = list(index = c("A", "B", "C", "T.cell", "x"), niche = c("AC", "AC", "AC", "T.m", "T.m"))
-)
-selfn$c1$res <- isn(selfn$c1$index, selfn$c1$niche)
 gmap <- list(AC = c("A", "C"), B = "B", `T m` = c("T-cell", "x y"))
-selfn$c2$res <- isn(selfn$c2$index, selfn$c2$niche, gmap)
-selfn$c2$res_null <- isn(selfn$c2$index, selfn$c2$niche)
-# merged label already used as the index label; sanitised names
-selfn$c3 <- list(index = c("AC", "A", "T.m", "T.cell", "x.y", "B"),
-                 niche = c("AC", "AC", "T.m", "T.m", "T.m", "AC"))
-selfn$c3$res <- isn(selfn$c3$index, selfn$c3$niche, gmap)
+selfn <- list(
+  index = c("A", "B", "C", "T-cell", "x y", "T.cell", "AC", "T m", "Q"),
+  niches = c("AC", "B", "T m", "A", "T.m")
+)
+# rows = index, columns = niches
+selfn$res <- t(vapply(selfn$index, function(i) isn(i, selfn$niches, gmap), logical(5), USE.NAMES = FALSE))
+selfn$res_null <- t(vapply(selfn$index, function(i) isn(i, selfn$niches), logical(5), USE.NAMES = FALSE))
 selfn$gmap_names <- names(gmap)
 
 write_ref(list(build = build, build_cols = build_cols, build_names = build_names,

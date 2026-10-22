@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Install the R reference packages into tests/ref/Rlib only (never the user library):
-# SpaNorm f233b7b (1.7.16) first, then spiDE e31e744 (0.99.37). Override the sources with
+# SpaNorm f233b7b (1.7.16) first, then spiDE c8db60a. Override the sources with
 # SPANORM_REPO / SPIDE_REPO and the refs with SPANORM_REF / SPIDE_REF.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 SPANORM_REF="${SPANORM_REF:-f233b7b}"
 SPANORM_REPO="${SPANORM_REPO:-$REPO/../SpaNorm}"
-SPIDE_REF="${SPIDE_REF:-e31e744}"
+SPIDE_REF="${SPIDE_REF:-c8db60a}"
 SPIDE_REPO="${SPIDE_REPO:-$REPO/../spiDE}"
 RBIN="${RBIN:-$HOME/miniconda3/envs/latest-r/bin}"
 TMP="$(mktemp -d)"

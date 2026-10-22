@@ -1,4 +1,4 @@
-"""Every R export at spiDE e31e744 is mapped in docs/r-to-python.md, and the mapping is real."""
+"""Every R export at spiDE c8db60a is mapped in docs/r-to-python.md, and the mapping is real."""
 
 import importlib
 import re
@@ -10,7 +10,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 R_REPO = ROOT.parent / "spiDE"
 DOC = ROOT / "docs" / "r-to-python.md"
-NAMESPACE = ROOT / "tests" / "ref" / "data" / "NAMESPACE"  # spiDE e31e744:NAMESPACE
+NAMESPACE = ROOT / "tests" / "ref" / "data" / "NAMESPACE"  # spiDE c8db60a:NAMESPACE
 
 
 def _parse_exports(ns: str) -> list[str]:
@@ -20,7 +20,7 @@ def _parse_exports(ns: str) -> list[str]:
 def _r_exports() -> list[str]:
     """Names in ``export()`` and ``exportClasses()`` of the R NAMESPACE (methods are the same names).
 
-    Read from the snapshot of the NAMESPACE at spiDE e31e744 kept in the test data.
+    Read from the snapshot of the NAMESPACE at spiDE c8db60a kept in the test data.
     """
     return _parse_exports(NAMESPACE.read_text())
 
@@ -83,9 +83,9 @@ def test_public_api_is_documented():
 
 @pytest.mark.skipif(not R_REPO.exists(), reason="../spiDE not available")
 def test_namespace_snapshot_matches_r_repo():
-    """The committed NAMESPACE snapshot is the file at spiDE e31e744."""
+    """The committed NAMESPACE snapshot is the file at spiDE c8db60a."""
     live = subprocess.run(
-        ["git", "-C", str(R_REPO), "show", "e31e744:NAMESPACE"],
+        ["git", "-C", str(R_REPO), "show", "c8db60a:NAMESPACE"],
         check=True, capture_output=True, text=True,
     ).stdout  # fmt: skip
     assert live == NAMESPACE.read_text()

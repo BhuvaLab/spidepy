@@ -32,7 +32,7 @@ dump_fit <- function(fit) {
 dump_res <- function(r) {
   list(table = dump_df(r@table), condition = if (length(r@condition)) r@condition else "",
        contrast = if (length(r@contrast)) r@contrast else "", procedure = r@procedure, fdr = r@fdr,
-       pooled_df = if (length(r@pooled.df)) r@pooled.df else "", fit = dump_fit(r@fit))
+       fit = dump_fit(r@fit))
 }
 # the data of the layer whose data frame has all of these columns (and none of `not`)
 layer_data <- function(p, has, not = character()) {

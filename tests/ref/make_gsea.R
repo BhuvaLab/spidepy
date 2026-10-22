@@ -34,11 +34,6 @@ cfg$e2e <- list(
   self = gs_dump(res, sets, type = "self-contained", min.size = 3),
   pooled = gs_dump(res, sets, test = "pooled", min.size = 3),
   cond = gs_dump(res, sets, test = "condition", min.size = 3),
-  capped = gs_dump(res, sets, pooled.df = "capped", min.size = 3),
-  proportional = gs_dump(testSpiDE(res@fit, condition = "condition", procedure = "all", pooled.df = "capped"),
-                         sets, pooled.df = "proportional", min.size = 3),
-  inherit_capped = gs_dump(testSpiDE(res@fit, condition = "condition", procedure = "all", pooled.df = "capped"),
-                           sets, min.size = 3),
   size_default = gs_dump(res, sets),
   max2 = gs_dump(res, sets, min.size = 1, max.size = 3),
   none = gs_dump(res, sets, min.size = 50))

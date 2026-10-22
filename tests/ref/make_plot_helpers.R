@@ -31,7 +31,7 @@ dump_fit <- function(fit) {
 dump_res <- function(r) {
   list(table = dump_df(r@table), condition = if (length(r@condition)) r@condition else "",
        contrast = if (length(r@contrast)) r@contrast else "", procedure = r@procedure, fdr = r@fdr,
-       pooled_df = if (length(r@pooled.df)) r@pooled.df else "", fit = dump_fit(r@fit))
+       fit = dump_fit(r@fit))
 }
 
 spe <- buildNiches(spiDE:::.toySPE(n_samples = 16, n_per = 150, seed = 7), sigma = 30, verbose = FALSE)
@@ -64,11 +64,16 @@ cols <- list(fixed = spiDE::spiDEColours(), direction = spiDE::spiDEColours("dir
              condition = spiDE::spiDEColours("condition"))
 for (n in c(1, 2, 5, 9, 11, 20)) {
   cols[[paste0("magnitude", n)]] <- spiDE::spiDEColours("magnitude", n)
+  cols[[paste0("spatial", n)]] <- spiDE::spiDEColours("spatial", n)
   cols[[paste0("diverging", n)]] <- spiDE::spiDEColours("diverging", n)
 }
 for (n in c(1, 5, 8, 9, 10, 12, 20)) cols[[paste0("nuisance", n)]] <- spiDE::spiDEColours("nuisance", n)
-cols$ramp256_skip <- spiDE:::.magnitudeRamp(256L, skip = 0.1)
-cols$ramp7_skip <- spiDE:::.magnitudeRamp(7L, skip = 0.3)
+cols$ramp256 <- spiDE:::.magnitudeRamp(256L)
+cols$ramp256_spatial <- spiDE:::.magnitudeRamp(256L, spatial = TRUE)
+cols$ramp12 <- spiDE:::.magnitudeRamp(12L)
+cols$ramp7_spatial <- spiDE:::.magnitudeRamp(7L, spatial = TRUE)
+cols$break_in <- c("Non-responder", "Responder", "Late stage group", "Plain", "Averyveryverylongword", "a b c d e f g h i")
+cols$break_out <- spiDE:::.breakLabel(cols$break_in)
 lab <- list(
   trip = spiDE:::.itTriplet('a"b\\c', "T cell", "B|x"), gene = spiDE:::.itGene('a"b\\c'),
   fmtq_in = c(0.0234, 2e-8, NA, 0.5, 1, 0.001, 0.00099, Inf),

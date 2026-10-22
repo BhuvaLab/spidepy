@@ -163,6 +163,20 @@ pubs <- list(
   gs_strict = run(condition = "condition", genesets = gs, min.cells = 70L))
 out$pub <- lapply(pubs, dump_na)
 
+# a merged niche is never tested against an index type that is a member (test-niche-abundance.R)
+spe_m <- mergeNiches(spe, list(AC = c("A", "C")), sigma = 50)
+out$merged <- list(
+  all = dump_na(run(spe_m, condition = "condition")),
+  idx_A = dump_na(run(spe_m, condition = "condition", index = "A")))
+# index and niche labels keep their spelling (a space, a hyphen)
+spe_l <- spe0
+spe_l$cell_type <- c(A = "T cell", B = "B-cell", C = "C")[spe_l$cell_type]
+spe_l <- buildNiches(spe_l, sigma = 50, verbose = FALSE)
+out$relabel <- list(cell_type = unname(spe_l$cell_type),
+                    niche50 = unname(as.matrix(reducedDim(spe_l, "Niche50"))),
+                    niche_cols = colnames(reducedDim(spe_l, "Niche50")),
+                    table = dump_na(run(spe_l, condition = "condition")))
+
 # a sample far out on the niche axis for every index type
 NMhl <- reducedDim(spe, "Niche50")
 NMhl[smp == "S1", ] <- NMhl[smp == "S1", ] * 25
