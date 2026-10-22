@@ -172,3 +172,8 @@ One bullet per item: what R does, what spidepy does, and why. Reference: spiDE 0
   (and adjusted R^2, which is sign invariant) are compared with R.
 - **The call graph's edges.** `geom_curve(curvature = 0.22)` becomes a matplotlib `arc3` arrow;
   the drawn curvature and arrow heads are approximate, the edge data are R's.
+- **Patient-slope x breaks.** R's `scales::breaks_extended(n = 3)` (Wilkinson's extended
+  algorithm) becomes matplotlib's `MaxNLocator(nbins = 3)`; the tick positions can differ, the
+  plotted values do not.
+- **Spillover threshold label.** R nudges it with `hjust = 1.05`; here it is plainly right-aligned
+  at the fold threshold, so it sits a few points closer to the line.
