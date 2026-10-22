@@ -61,7 +61,7 @@ def _patient_slopes(
     -------
     dict
         ``beta``, ``v_tile``, ``v_model`` (genes x patients x tested niches), ``pooled``
-        (genes x tested niches), ``ncells`` (patients), plus the ``patients`` and ``niches``
+        (genes x tested niches), plus the ``patients`` and ``niches``
         labels.
     """
     alpha = np.asarray(fit["alpha"], dtype=float)
@@ -150,7 +150,6 @@ def _patient_slopes(
         "v_tile": vt_a,
         "v_model": vm_a,
         "pooled": alpha[:, jn[:nt]],
-        "ncells": np.array([len(i) for i in rows_of]),
         "patients": list(des["patients"]),
         "niches": list(des["tested_niche"]),
     }

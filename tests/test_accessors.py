@@ -67,7 +67,7 @@ def test_intercept_columns_and_values(fit):
 
 
 def test_results_objects_dispatch_to_their_fit(fit):
-    res = SpiDEResults(pd.DataFrame(), "condition", "", "all", 0.05, "proportional", fit)
+    res = SpiDEResults(pd.DataFrame(), "condition", "", "all", 0.05, fit)
     pd.testing.assert_frame_equal(patient_slopes(res, gene="G1"), patient_slopes(fit, gene="G1"))
     pd.testing.assert_frame_equal(patient_intercepts(res), patient_intercepts(fit))
     with pytest.raises(TypeError):

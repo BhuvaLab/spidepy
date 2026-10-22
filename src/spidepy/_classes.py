@@ -97,9 +97,6 @@ class SpiDEResults:
         The condition test's family.
     fdr : float
         The FDR level of the filter.
-    pooled_df : str or None
-        The slopes engine's pooled-test degrees of freedom rule (R slot ``pooled.df``);
-        ``None`` for the sandwich engine (R: ``character()``).
     fit : SpiDEFit
         The fit that was tested.
     """
@@ -109,7 +106,6 @@ class SpiDEResults:
     contrast: str
     procedure: str
     fdr: float
-    pooled_df: str | None
     fit: SpiDEFit
 
     def results(self, test: str | None = None, fdr: float | None = None) -> pd.DataFrame:
@@ -143,8 +139,6 @@ class SpiDEResults:
             q = tb.loc[(tb["test"] == tt) & tb["q"].notna(), "q"]
             if tt == "condition":
                 lab = f"condition-specific ({self.contrast}; {self.procedure} family)"
-            elif self.fit.engine == "slopes":
-                lab = f"pooled across patients ({self.pooled_df} df)"
             else:
                 lab = "pooled across patients"
             lines.append(

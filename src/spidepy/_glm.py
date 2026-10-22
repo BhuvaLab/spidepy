@@ -144,7 +144,7 @@ def _working_wr(y, W, alpha, psi, offset=0.0) -> dict:
     """
     mu = np.exp(_lin_pred(W, alpha) + offset)
     d = 1.0 + psi * mu
-    return {"w": mu / d, "r": (np.asarray(y, dtype=float) - mu) / d, "mu": mu}
+    return {"w": mu / d, "r": (np.asarray(y, dtype=float) - mu) / d}
 
 
 def _bp_genes(G: int, fun, n_jobs: int = 1) -> list:

@@ -14,7 +14,7 @@ from spidepy._test_slopes import (
     _bh_families,
     _dl_tau2,
     _heterogeneity_p,
-    _kish_df,
+    _kish_n,
     _pooled_column_test,
     _robust_condition_test,
 )
@@ -87,20 +87,11 @@ def test_pooled_column_test_on_r_slopes(R, name):
                 _pooled_column_test(b, v, tau[:, j], me), cj["pooled_prop"], what + ".prop", tol
             )
             _compare(
-                _pooled_column_test(b, v, tau[:, j], me, df_rule="capped"),
-                cj["pooled_cap"],
-                what + ".cap",
-                tol,
-            )
-            _compare(
                 _pooled_column_test(b, v, tau[:, j], me, trend=False),
                 cj["pooled_flat"],
                 what + ".flat",
                 tol,
             )
-            with np.errstate(all="ignore"):
-                kd = _kish_df(1 / (v + tau[:, j][:, None]), b, 1)
-            close(kd, cj["kish"], what + ".kish")
 
 
 @pytest.mark.parametrize("name", CONFIGS)
@@ -132,20 +123,16 @@ def test_robust_condition_test_on_r_slopes(R, name):
         assert n_strata > 10
 
 
-def test_pooled_dfs_on_the_synthetic_family(R):
+def test_pooled_test_on_the_synthetic_family(R):
     f = R["family"]
     b, v, tau, me = (np.asarray(f[k], float) for k in ("b", "v", "tau", "mean_expr"))
     pro = _pooled_column_test(b, v, tau, me)
-    cap = _pooled_column_test(b, v, tau, me, df_rule="capped")
     _compare(pro, f["prop"], "prop")
-    _compare(cap, f["cap"], "cap")
     _compare(_pooled_column_test(b, v, tau, me, trend=False), f["flat"], "flat")
-    close(_kish_df(1 / (v + tau[:, None]), b, 1), f["kish"], "kish")
-    # only the df move; limma's df is the upper bound of both
-    np.testing.assert_array_equal(pro["t"], cap["t"])
-    np.testing.assert_array_equal(pro["estimate"], cap["estimate"])
+    with np.errstate(all="ignore"):
+        ww = np.where(np.isfinite(b), 1 / (v + tau[:, None]), np.nan)
+    close(_kish_n(ww), f["kish"], "kish")
     ok = np.isfinite(b).sum(axis=1) >= 6
-    assert (pro["df"][ok] > cap["df"][ok]).mean() > 0.5
     # direct limma computation, as the testthat case. R compares at 1e-12; the robust prior is
     # an optimiser that amplifies the 1e-16 difference in how the two weight normalisations sum
     # (nanmean here, rowMeans in R), so the Python comparison is at the limma tolerance.
@@ -158,14 +145,18 @@ def test_pooled_dfs_on_the_synthetic_family(R):
     neff = np.nansum(w, axis=1) ** 2 / np.nansum(w**2, axis=1)
     m = np.isfinite(w).sum(axis=1)
     np.testing.assert_allclose(pro["df"][ok], (eb["df_total"] * neff / m)[ok], rtol=1e-8)
-    np.testing.assert_allclose(
-        cap["df"][ok], np.minimum(eb["df_total"], np.maximum(neff - 1, 1))[ok], rtol=1e-8
-    )
     assert (pro["df"][ok] <= eb["df_total"][ok] + 1e-12).all()
     # the family-level tau2 and heterogeneity
     b3, v3 = b[:, :, None], v[:, :, None]
     close(_dl_tau2(b3, v3)[:, 0], f["tau_fam"], "tau_fam")
     close(_heterogeneity_p(b3, v3)[:, 0], f["het_fam"], "het_fam", rtol=1e-9)
+
+
+def test_kish_n_is_the_direct_formula():
+    W = np.array([[1, 1, 1, 1], [1, 2, np.nan, 3], [np.nan] * 4], dtype=float)
+    got = _kish_n(W)
+    np.testing.assert_allclose(got[:2], [4, 36 / 14], rtol=1e-12)
+    assert np.isnan(got[2])
 
 
 def test_heterogeneity_p_is_cochrans_q_and_tau2_follows(R):

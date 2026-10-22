@@ -14,7 +14,6 @@ from ._test_slopes import _dl_tau2, _pooled_column_test, _robust_condition_test
 from .fit import _condition_coding, _match_arg, _strata_by_patient
 
 _TYPES = ("competitive", "self-contained")
-_POOLED_DF = ("proportional", "capped")
 _TESTS = ("pooled", "condition")
 _COLUMNS = [
     "set",
@@ -111,7 +110,6 @@ def spi_gsea(
     type: str = "competitive",
     min_size: int = 5,
     max_size: int = 500,
-    pooled_df: str | None = None,
     n_jobs: int = 1,
 ) -> pd.DataFrame:
     """Gene-set tests on spiDE's niche results (R ``spiGSEA``).
@@ -142,9 +140,6 @@ def spi_gsea(
     type : {"competitive", "self-contained"}
     min_size, max_size : int
         Set size limits after intersecting with the genes tested in each index type.
-    pooled_df : {"proportional", "capped"}, optional
-        The pooled test's df rule; default the one ``res`` used (``"capped"`` when it records
-        none).
     n_jobs : int
         Workers for the condition test (results do not depend on it).
 
@@ -159,10 +154,6 @@ def spi_gsea(
     if not isinstance(res, SpiDEResults):
         raise TypeError("'res' should be a SpiDEResults from test_spide() or spide()")
     type = _match_arg(type, _TYPES, "type")
-    if pooled_df is None:
-        pooled_df = res.pooled_df if res.pooled_df else "capped"  # R .pooledDfOf
-    else:
-        pooled_df = _match_arg(pooled_df, _POOLED_DF, "pooled_df")
     check_genesets(genesets)
     fit = res.fit
     if fit.engine != "slopes":
@@ -203,9 +194,7 @@ def spi_gsea(
             b, v = ss["b"][:, :, j], ss["v"][:, :, j]
             tau = _dl_tau2(b[:, :, None], v[:, :, None])[:, 0]
             if "pooled" in test:
-                r = _pooled_column_test(
-                    b, v, tau, ss["mean_expr"], trend=len(mem) >= 20, df_rule=pooled_df
-                )
+                r = _pooled_column_test(b, v, tau, ss["mean_expr"], trend=len(mem) >= 20)
                 out.append(_rows(names, k, niche, "pooled", size, r))
             if "condition" in test:
                 r = _robust_condition_test(b, v, tau, trt=trt, strata=st, n_jobs=n_jobs)
@@ -226,9 +215,18 @@ def spi_gsea(
     d["q"], d["q.global"] = q, qg
     t = d["t"].to_numpy(dtype=float)
     d["direction"] = np.where(np.isfinite(t), np.where(t > 0, "up", "down"), None)
-    # R order(test != "pooled", p): pooled first, p ascending, NA last, ties in row order
-    pk = np.where(np.isnan(p), np.inf, p)
-    o = np.lexsort((pk, (d["test"] != "pooled").to_numpy()))
+    # R order(test != "pooled", round(p, 12), index, niche, set): pooled first, p ascending with
+    # NA last, ties (complementary sets give exactly opposite t) broken by name in code-point order
+    pk = np.where(np.isnan(p), np.inf, np.round(p, 12))
+    o = np.lexsort(
+        (
+            d["set"].to_numpy(dtype=str),
+            d["niche"].to_numpy(dtype=str),
+            d["index"].to_numpy(dtype=str),
+            pk,
+            (d["test"] != "pooled").to_numpy(),
+        )
+    )
     return d.iloc[o][_COLUMNS].reset_index(drop=True)
 
 

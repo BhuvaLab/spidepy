@@ -62,7 +62,6 @@ def _meta(res, r, what):
     assert res.contrast == r["contrast"], what
     assert res.procedure == r["procedure"], what
     assert res.fdr == r["fdr"], what
-    assert (res.pooled_df or "") == r["pooled_df"], what
 
 
 def _check(res, r, what, rtol=1e-8):
@@ -73,15 +72,14 @@ def _check(res, r, what, rtol=1e-8):
 # --------------------------------------------------------------------------------------
 # the full table on R's own fit
 # --------------------------------------------------------------------------------------
-def test_slopes_tables_on_r_fit_every_procedure_and_df_rule(R):
+def test_slopes_tables_on_r_fit_every_procedure(R):
     fit = fit_from_ref(R["sl16"]["fit"])
     d = R["sl16"]
     _check(spidepy.test_spide(fit, condition="condition"), d["default"], "default")
     _check(spidepy.test_spide(fit), d["nocond"], "nocond")
-    for key, r in d["variants"].items():
-        proc, dfr = key.split("__")
-        res = spidepy.test_spide(fit, condition="condition", procedure=proc, pooled_df=dfr)
-        _check(res, r, key)
+    for proc, r in d["variants"].items():
+        res = spidepy.test_spide(fit, condition="condition", procedure=proc)
+        _check(res, r, proc)
 
 
 def test_slopes_tables_with_strata_recorded_and_named_at_test_time(R):
@@ -89,10 +87,9 @@ def test_slopes_tables_with_strata_recorded_and_named_at_test_time(R):
     fit = fit_from_ref(d["fit"])
     assert fit.params["strata"] == "slide"
     _check(spidepy.test_spide(fit), d["default"], "recorded strata")
-    for key, r in d["variants"].items():
-        proc, dfr = key.split("__")
-        res = spidepy.test_spide(fit, condition="condition", procedure=proc, pooled_df=dfr)
-        _check(res, r, key)
+    for proc, r in d["variants"].items():
+        res = spidepy.test_spide(fit, condition="condition", procedure=proc)
+        _check(res, r, proc)
     d0 = R["toy_testtime"]
     fit0 = fit_from_ref(d0["fit"])
     res = spidepy.test_spide(fit0, condition="condition", procedure="all", strata="slide")
@@ -122,7 +119,6 @@ def test_sandwich_tables_on_r_fit(R):
     res0 = spidepy.test_spide(fit_from_ref(d["fit0"]))
     _check(res0, d["pooled_only"], "sand pooled only")
     assert set(res0.table["test"]) == {"pooled"}
-    assert res0.pooled_df is None
     assert res0.table["p.heterogeneity"].isna().all()
 
 
@@ -176,10 +172,7 @@ def test_results_accessor_matches_r(R, fit16):
 def test_show_matches_r(R, fit16):
     r = R["sl16"]
     assert repr(spidepy.test_spide(fit16, condition="condition")) == "\n".join(strs(r["show"]))
-    capped = spidepy.test_spide(
-        fit16, condition="condition", procedure="filtered", pooled_df="capped"
-    )
-    assert repr(capped) == "\n".join(strs(r["show_capped"]))
+    assert "df)" not in repr(spidepy.test_spide(fit16, condition="condition"))
     fs = fit_from_ref(R["sand"]["fit"])
     assert repr(spidepy.test_spide(fs)) == "\n".join(strs(R["sand"]["show"]))
 
@@ -235,12 +228,11 @@ def test_spide_end_to_end_matches_r(R, toy):
             30,
             index="A",
             procedure="heterogeneity",
-            pooled_df="capped",
             fdr=0.1,
             verbose=False,
         ),
-        e["toy_capped"],
-        "toy capped",
+        e["toy_het"],
+        "toy heterogeneity",
     )
 
 
@@ -248,6 +240,23 @@ def test_spide_uses_niches_the_data_already_carries(toy):
     got = spidepy.spide(toy, "condition", 30, index="A", verbose=False)
     ref = spidepy.test_spide(fit_spide(toy, "condition", index="A", sigma=30, verbose=False))
     pd.testing.assert_frame_equal(got.table, ref.table)
+
+
+def test_spide_name_reads_or_builds_niches_under_a_custom_prefix(toy):
+    kw = dict(condition="condition", sigma=30, index="A", procedure="all", verbose=False)
+    ref = spidepy.spide(toy, **kw)
+    # niches stored under the custom prefix and no "Niche30": used as they are
+    a = load_spe("toySpiDE")
+    build_niches(a, sigma=30, name="Nb")
+    assert [k for k in a.obsm if k.startswith("N")] == ["Nb30"]
+    got = spidepy.spide(a, name="Nb", **kw)
+    pd.testing.assert_frame_equal(got.table, ref.table)
+    assert [k for k in a.obsm if k.startswith("N")] == ["Nb30"]
+    # absent: built under the prefix for the run and not left on the data
+    b = load_spe("toySpiDE")
+    got2 = spidepy.spide(b, name="Nb", **kw)
+    pd.testing.assert_frame_equal(got2.table, ref.table)
+    assert not [k for k in b.obsm if k.startswith("N")]
 
 
 def test_slopes_engine_recovers_the_planted_effect():
@@ -335,19 +344,14 @@ def test_pooled_alone_without_a_condition(fit16):
     assert set((cond["gene"] + " " + cond["niche"])[cond["in_family"]]) <= pass_
 
 
-def test_defaults_are_pooled_or_heterogeneity_and_proportional_df(fit16):
+def test_default_is_the_pooled_or_heterogeneity_family(fit16):
     from spidepy._rcompat import p_adjust_bh
 
     r = spidepy.test_spide(fit16, condition="condition")
-    assert r.procedure == "pooled_or_heterogeneity" and r.pooled_df == "proportional"
+    assert r.procedure == "pooled_or_heterogeneity"
     pd.testing.assert_frame_equal(
         r.table,
-        spidepy.test_spide(
-            fit16,
-            condition="condition",
-            procedure="pooled_or_heterogeneity",
-            pooled_df="proportional",
-        ).table,
+        spidepy.test_spide(fit16, condition="condition", procedure="pooled_or_heterogeneity").table,
     )
     tb = r.table
     pl = tb[(tb["test"] == "pooled") & tb["p.heterogeneity"].notna()]
@@ -385,11 +389,9 @@ def test_defaults_are_pooled_or_heterogeneity_and_proportional_df(fit16):
     np.testing.assert_array_equal(cond["p.heterogeneity"].to_numpy(), expected)
 
 
-def test_previous_defaults_stay_available_and_only_family_and_pooled_df_move(fit16):
+def test_previous_family_stays_available_and_only_the_family_moves(fit16):
     new = spidepy.test_spide(fit16, condition="condition").table
-    old = spidepy.test_spide(
-        fit16, condition="condition", procedure="filtered", pooled_df="capped"
-    ).table
+    old = spidepy.test_spide(fit16, condition="condition", procedure="filtered").table
     cl = (new["test"] == "condition").to_numpy()
     cols = ["gene", "niche", "estimate", "se", "t", "df", "p"]
     pd.testing.assert_frame_equal(new.loc[cl, cols], old.loc[cl, cols])
@@ -403,7 +405,7 @@ def test_sandwich_keeps_the_pooled_filter_and_refuses_the_heterogeneity_filter()
     sp = build_niches(load_spe("toyspe_s16_n120_g12_seed2"), sigma=30)
     fs = fit_spide(sp, condition="condition", index="A", sigma=30, engine="sandwich", verbose=False)
     r = spidepy.test_spide(fs)
-    assert r.procedure == "filtered" and r.pooled_df is None
+    assert r.procedure == "filtered"
     assert r.table["p.heterogeneity"].isna().all()
     for proc in ("heterogeneity", "pooled_or_heterogeneity"):
         with pytest.raises(ValueError, match="slopes engine"):
@@ -421,14 +423,11 @@ def test_sandwich_keeps_the_pooled_filter_and_refuses_the_heterogeneity_filter()
             verbose=False,
         )
     assert time.perf_counter() - t0 < 2
-    pd.testing.assert_frame_equal(spidepy.test_spide(fs, pooled_df="capped").table, r.table)
 
 
 def test_argument_errors(fit16, toy):
     with pytest.raises(ValueError, match="'procedure' should be one of"):
         spidepy.test_spide(fit16, procedure="nope")
-    with pytest.raises(ValueError, match="'pooled_df' should be one of"):
-        spidepy.test_spide(fit16, pooled_df="nope")
     for bad in (0, 1.5, -1, np.nan, "x"):
         with pytest.raises(ValueError, match="'fdr' should be"):
             spidepy.test_spide(fit16, fdr=bad)

@@ -55,7 +55,6 @@ def _compare(got, ref, rtol, atol=1e-12):
         np.testing.assert_array_equal(np.isnan(got[k]), np.isnan(r), err_msg=k)  # NA pattern exact
         np.testing.assert_allclose(got[k], r, rtol=rtol, atol=atol, equal_nan=True, err_msg=k)
     np.testing.assert_allclose(got["pooled"], ref["pooled"], rtol=rtol, atol=atol, equal_nan=True)
-    np.testing.assert_array_equal(got["ncells"], np.atleast_1d(ref["ncells"]))
     assert got["patients"] == strs(ref["patients"])
     assert got["niches"] == strs(ref["niches"])
 
@@ -92,7 +91,6 @@ def test_engineered_patients_hit_every_na_branch(S, D):
     assert np.isfinite(vt[:, s["S5"]]).all() and (vt[:, s["S5"]] >= vm[:, s["S5"]]).all()
     # unfitted genes are NA everywhere
     assert np.isnan(ps["beta"][~fitted]).all()
-    assert ps["ncells"].sum() == len(L)
 
 
 def test_patient_factor_misc(S):

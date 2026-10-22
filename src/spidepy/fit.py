@@ -300,7 +300,6 @@ def fit_spide(
                 "v_tile": ps["v_tile"],
                 "v_model": ps["v_model"],
                 "pooled": pd.DataFrame(ps["pooled"], index=gk, columns=nich),
-                "ncells": pd.Series(ps["ncells"], index=pats),
                 "factor": pd.DataFrame(
                     _patient_factor(ps["v_tile"], ps["v_model"]), index=pats, columns=nich
                 ),
@@ -336,9 +335,6 @@ def fit_spide(
                 "mean_expr": mean_expr,
                 "status": fit0["status"],
                 "depth_r2": depth_r2,
-                "ncells": pd.Series(
-                    np.bincount(pat_codes, minlength=len(pat_levels)), index=pat_levels
-                ),
                 **levels,
             }
     if not fits:
@@ -421,7 +417,7 @@ def _patient_levels(fit0: dict, des: dict, genes, L: pd.DataFrame, codes, ll) ->
     Its intercept per gene in the shared, condition-free fit (the level every between-patient
     difference is absorbed into; under ``depth = "spatial_spline"`` the intercept column of the
     patient's block), the mean ``log1p`` density of each tested niche over its index cells, and
-    their mean log library size.
+    their mean log library size and their cell count.
     """
     pats = list(des["patients"])
     a = np.asarray(fit0["alpha"])[:, des["intercept_cols"]]
@@ -440,4 +436,5 @@ def _patient_levels(fit0: dict, des: dict, genes, L: pd.DataFrame, codes, ll) ->
         "intercept": pd.DataFrame(a, index=genes, columns=pats),
         "niche_mean": pd.DataFrame(nm / n[:, None], index=pats, columns=list(L.columns)),
         "loglib_mean": pd.Series(dm, index=pats),
+        "ncells": pd.Series(np.bincount(codes, minlength=S), index=pats),
     }

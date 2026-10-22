@@ -70,13 +70,11 @@ def _heterogeneity_p(b: np.ndarray, v: np.ndarray) -> np.ndarray:
     return p
 
 
-def _kish_df(wts: np.ndarray, b: np.ndarray, k: int) -> np.ndarray:
-    """The Kish effective number of patients behind each gene's weights, less the design's
-    columns, floored at 1 (``.kishDf``)."""
-    ww = np.where(np.isfinite(wts) & np.isfinite(b), wts, np.nan)
+def _kish_n(w: np.ndarray) -> np.ndarray:
+    """The Kish effective number of patients behind each row of a weight matrix, NaN = no
+    usable patient: ``(sum w)^2 / sum w^2`` (``.kishN``)."""
     with np.errstate(all="ignore"):
-        neff = np.nansum(ww, axis=1) ** 2 / np.nansum(ww**2, axis=1)
-        return np.maximum(neff - k, 1.0)
+        return np.nansum(w, axis=1) ** 2 / np.nansum(w**2, axis=1)
 
 
 def _pooled_column_test(
@@ -86,7 +84,6 @@ def _pooled_column_test(
     mean_expr: np.ndarray,
     min_pooled: int = 6,
     trend: bool = True,
-    df_rule: str = "proportional",
 ) -> pd.DataFrame:
     """The pooled test of one (index, niche) column: moderated limma on an intercept
     (``.pooledColumnTest``).
@@ -94,16 +91,13 @@ def _pooled_column_test(
     ``b`` and ``v`` are genes x patients slopes and variances, ``tau2`` the genes' between-patient
     variance. The prior is robust and trended on ``log(mean_expr + 1e-3)`` over the column's
     gene family (``trend=False``: a flat prior); the df are limma's ``df.total`` scaled by the
-    Kish effective share of the patients (``"proportional"``) or capped by the Kish effective
-    patients less one (``"capped"``).
+    Kish effective share of the patients.
 
     R wraps ``eBayes`` in ``tryCatch(suppressWarnings(...))`` and retries with
     ``robust = FALSE`` when the robust call fails; the retry reads the ``fit`` variable the
     failed call has just overwritten with ``NULL`` and so always fails too (see
     ``docs/r-discrepancies.md``): a column whose robust prior fails is entirely NA here, as in R.
     """
-    if df_rule not in ("proportional", "capped"):
-        raise ValueError("'df_rule' should be one of 'proportional', 'capped'")
     b = np.asarray(b, dtype=float)
     G = b.shape[0]
     with np.errstate(all="ignore"):
@@ -130,13 +124,9 @@ def _pooled_column_test(
             est[fitted] = eb["coefficients"][:, 0]
             tt[fitted] = eb["t"][:, 0]
             bf = b[fitted]
-            if df_rule == "capped":
-                df[fitted] = np.minimum(eb["df_total"], _kish_df(w, bf, 1))
-            else:
-                ww = np.where(np.isfinite(w) & np.isfinite(bf), w, np.nan)
-                with np.errstate(all="ignore"):
-                    neff = np.nansum(ww, axis=1) ** 2 / np.nansum(ww**2, axis=1)
-                    df[fitted] = eb["df_total"] * neff / np.isfinite(ww).sum(axis=1)
+            ww = np.where(np.isfinite(w) & np.isfinite(bf), w, np.nan)
+            with np.errstate(all="ignore"):
+                df[fitted] = eb["df_total"] * _kish_n(ww) / np.isfinite(ww).sum(axis=1)
     tt[(n_ok < min_pooled) | ~np.isfinite(tt)] = np.nan
     with np.errstate(all="ignore"):
         p = 2 * stats.t.cdf(-np.abs(tt), df)
@@ -184,7 +174,7 @@ def _solve_inv(m: np.ndarray):
 
 
 def _kish(w: np.ndarray) -> float:
-    return float(w.sum() ** 2 / (w**2).sum()) if len(w) else 0.0
+    return float(_kish_n(w[None, :])[0]) if len(w) else 0.0
 
 
 def _condition_gene(b, v, tau2, trt, x0, min_group):
@@ -279,9 +269,7 @@ def _robust_condition_test(
     )
 
 
-def _slopes_tests(
-    x: dict, trt=None, strata=None, n_jobs: int = 1, pooled_df: str = "proportional"
-) -> pd.DataFrame:
+def _slopes_tests(x: dict, trt=None, strata=None, n_jobs: int = 1) -> pd.DataFrame:
     """The slopes engine's tests for one index type's stored slopes (``.slopesTests``).
 
     Every row carries its triplet's label-free heterogeneity p. Rows are ordered by niche,
@@ -296,9 +284,7 @@ def _slopes_tests(
     out = []
     for j, niche in enumerate(x["niches"]):
         bj, vj = beta[:, :, j], vpool[:, :, j]
-        tests = [
-            ("pooled", _pooled_column_test(bj, vj, tau_pool[:, j], mean_expr, df_rule=pooled_df))
-        ]
+        tests = [("pooled", _pooled_column_test(bj, vj, tau_pool[:, j], mean_expr))]
         if trt is not None:
             tests.append(
                 (

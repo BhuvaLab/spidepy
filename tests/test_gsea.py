@@ -99,7 +99,6 @@ def test_set_slope_is_mean_of_scaled_slopes_less_background(T):
         ("self", dict(type="self-contained", min_size=3)),
         ("pooled", dict(test="pooled", min_size=3)),
         ("cond", dict(test="condition", min_size=3)),
-        ("capped", dict(pooled_df="capped", min_size=3)),
         ("size_default", dict()),
         ("max2", dict(min_size=1, max_size=3)),
         ("none", dict(min_size=50)),
@@ -110,17 +109,11 @@ def test_e2e_fit_tables(R, T, name, kw):
     compare(spi_gsea(res_e2e(T), sets, **kw), R["e2e"][name], name)
 
 
-def test_pooled_df_inherited_from_results(R, T):
-    sets = sets_of(R["e2e"]["sets"])
-    fit = fit_from_ref(T["e2e_fit"]["fit"])
-    capped = test_spide(fit, condition="condition", procedure="all", pooled_df="capped")
-    compare(spi_gsea(capped, sets, min_size=3), R["e2e"]["inherit_capped"], "inherit")
-    compare(
-        spi_gsea(capped, sets, pooled_df="proportional", min_size=3),
-        R["e2e"]["proportional"],
-        "override",
-    )
-    assert capped.pooled_df == "capped"
+def test_the_capped_df_option_is_gone(R, T):
+    res = res_e2e(T)
+    assert not hasattr(res, "pooled_df")
+    with pytest.raises(TypeError):
+        spi_gsea(res, sets_of(R["e2e"]["sets"]), pooled_df="capped")
 
 
 def test_trended_prior_for_20_or_more_sets(R, T):

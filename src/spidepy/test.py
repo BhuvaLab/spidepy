@@ -15,7 +15,6 @@ from .fit import _condition_coding, _match_arg, _strata_by_patient, fit_spide
 from .niches import build_niches
 
 _PROCEDURES = ("pooled_or_heterogeneity", "heterogeneity", "filtered", "all")
-_POOLED_DF = ("proportional", "capped")
 _SANDWICH_COLS = ["gene", "niche", "test", "estimate", "se", "t", "df", "p"]
 
 
@@ -25,7 +24,6 @@ def test_spide(
     procedure: str | None = None,
     fdr: float = 0.05,
     strata: str | None = None,
-    pooled_df: str = "proportional",
     n_jobs: int = 1,
 ) -> SpiDEResults:
     """Test niche-dependent differential expression (R ``testSpiDE``).
@@ -64,10 +62,6 @@ def test_spide(
     strata : str, optional
         Default: the fit's. A patient-level column adjusted for in the slopes engine's
         condition test (e.g. slide, where the condition is confounded with it).
-    pooled_df : {"proportional", "capped"}
-        The degrees of freedom of the slopes engine's pooled test: limma's scaled by the Kish
-        effective share of the patients, or the smaller of limma's and the Kish effective
-        patients less one. The sandwich engine has Bell-McCaffrey df and ignores it.
     n_jobs : int
         The slopes engine's condition test is run over genes in blocks on this many workers.
 
@@ -84,7 +78,6 @@ def test_spide(
     else:
         procedure = _match_arg(procedure, _PROCEDURES, "procedure")
     check_procedure(procedure, fit.engine)
-    pooled_df = _match_arg(pooled_df, _POOLED_DF, "pooled_df")
     check_fdr(fdr)
     if condition is None and fit.condition:
         condition = fit.condition
@@ -106,7 +99,7 @@ def test_spide(
             pats = list(x["patients"])
             trt = None if trt_of is None else trt_of.reindex(pats).to_numpy()
             st = None if str_of is None else str_of.reindex(pats).to_numpy()
-            tk = _slopes_tests(x, trt=trt, strata=st, n_jobs=n_jobs, pooled_df=pooled_df)
+            tk = _slopes_tests(x, trt=trt, strata=st, n_jobs=n_jobs)
         else:
             tk = x["coef"]
             if condition is None:
@@ -128,7 +121,6 @@ def test_spide(
         contrast=contrast,
         procedure=procedure,
         fdr=fdr,
-        pooled_df=pooled_df if slopes else None,
         fit=fit,
     )
 
@@ -144,9 +136,9 @@ def spide(
     engine: str = "slopes",
     procedure: str | None = None,
     fdr: float = 0.05,
-    pooled_df: str = "proportional",
     cell_type: str = "cell_type",
     sample_id: str = "sample_id",
+    name: str = "Niche",
     n_jobs: int = 1,
     verbose: bool = True,
     **fit_kwargs,
@@ -168,10 +160,13 @@ def spide(
         The niche bandwidth.
     engine : {"slopes", "sandwich"}
         See :func:`~spidepy.fit_spide`.
-    procedure, fdr, pooled_df
+    procedure, fdr
         Passed to :func:`~spidepy.test_spide`; ``procedure`` defaults to the engine's default.
     cell_type, sample_id : str
         The ``obs`` columns of cell type and patient.
+    name : str
+        The niche key prefix: the niches are read from, or built into,
+        ``adata.obsm[name + sigma]``.
     n_jobs : int
         Number of workers.
     verbose : bool
@@ -186,15 +181,15 @@ def spide(
     engine = _match_arg(engine, ("slopes", "sandwich"), "engine")
     if procedure is not None:
         procedure = _match_arg(procedure, _PROCEDURES, "procedure")
-    pooled_df = _match_arg(pooled_df, _POOLED_DF, "pooled_df")
     if procedure is not None:
         check_procedure(procedure, engine)  # before the fit, not after it
     if sigma is None or np.ndim(sigma) != 0:
         raise ValueError("'sigma' must be a single bandwidth")
     built = False
-    if niche_key("Niche", sigma) not in adata.obsm:
-        # R's reducedDim lookup is for "Niche<sigma>" whatever 'name' the fit reads
-        build_niches(adata, sigma=sigma, cell_type=cell_type, sample_id=sample_id, n_jobs=n_jobs)
+    if niche_key(name, sigma) not in adata.obsm:
+        build_niches(
+            adata, sigma=sigma, cell_type=cell_type, sample_id=sample_id, name=name, n_jobs=n_jobs
+        )
         built = True
     try:
         fit = fit_spide(
@@ -204,19 +199,19 @@ def spide(
             sigma=sigma,
             cell_type=cell_type,
             sample_id=sample_id,
+            name=name,
             n_jobs=n_jobs,
             verbose=verbose,
             **fit_kwargs,
         )
     finally:
         if built:
-            del adata.obsm[niche_key("Niche", sigma)]
+            del adata.obsm[niche_key(name, sigma)]
     return test_spide(
         fit,
         condition=condition,
         procedure=procedure,
         fdr=fdr,
-        pooled_df=pooled_df,
         n_jobs=n_jobs,
     )
 

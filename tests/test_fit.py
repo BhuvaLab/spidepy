@@ -542,7 +542,7 @@ def test_patient_intercepts_long_form_and_results_dispatch(spe16):
     assert {"gene", "index", "patient", "intercept", "ncells", "condition"} <= set(d.columns)
     got = d.loc[(d.gene == "G1") & (d.patient == "S1"), "intercept"].iloc[0]
     assert got == fit.index["A"]["intercept"].loc["G1", "S1"]
-    res = SpiDEResults(pd.DataFrame(), "condition", "", "all", 0.05, "proportional", fit)
+    res = SpiDEResults(pd.DataFrame(), "condition", "", "all", 0.05, fit)
     pd.testing.assert_frame_equal(
         patient_intercepts(res, gene="G1"), patient_intercepts(fit, gene="G1")
     )

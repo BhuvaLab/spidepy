@@ -143,7 +143,7 @@ def test_working_wr_matches_r(R, name):
     for g in (1, 3):
         o = np.asarray(R["fit_inputs"]["Ok"])[g - 1] if name in ("c5", "c6") else 0.0
         got = _working_wr(Yk[g - 1], des["W"], alpha[g - 1], psi[g - 1], o)
-        for k in ("w", "r", "mu"):
+        for k in ("w", "r"):
             np.testing.assert_allclose(got[k], cfg[f"wr{g}"][k], rtol=1e-10, atol=1e-12)
 
 
